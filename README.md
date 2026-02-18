@@ -78,16 +78,16 @@ Sistem, 5 farklı bina (Mühendislik, Kütüphane, Spor Salonu, İdari Bina, Yur
 
 ```
 ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│  Veri        │───▶│  Zamanlayıcı  │───▶│  ML Model   │
-│  Toplama     │    │  (Scheduler)  │    │  (Random    │
-│  (Sensörler) │    │              │    │   Forest)   │
+│  Veri       │───▶│  Zamanlayıcı │───▶│  ML Model   │
+│  Toplama    │    │  (Scheduler) │    │  (Random    │
+│  (Sensörler)│    │              │    │   Forest)   │
 └─────────────┘    └──────────────┘    └──────┬──────┘
                                               │
-┌─────────────┐    ┌──────────────┐    ┌──────▼──────┐
-│  Dashboard   │◀──│  Uyarılar &   │◀──│ Optimizatör │
-│  (Flask +    │    │  WebSocket   │    │  (Strateji  │
-│   Chart.js)  │    │  (Socket.IO) │    │   Üretici)  │
-└─────────────┘    └──────────────┘    └─────────────┘
+┌─────────────┐   ┌──────────────┐     ┌──────▼──────┐
+│  Dashboard  │◀──│  Uyarılar &  │◀────│ Optimizatör │
+│  (Flask +   │   │  WebSocket   │     │  (Strateji  │
+│   Chart.js) │   │  (Socket.IO) │     │   Üretici)  │
+└─────────────┘   └──────────────┘     └─────────────┘
 ```
 
 ---
