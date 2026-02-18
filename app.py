@@ -2,8 +2,11 @@
 yapılandırmayı yükler ve veritabanını hazırlar.
 """
 
-import eventlet
-eventlet.monkey_patch()
+try:
+    import eventlet
+    eventlet.monkey_patch()
+except ImportError:
+    pass
 
 import os
 from datetime import datetime, timedelta
