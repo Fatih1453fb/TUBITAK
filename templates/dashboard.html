@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Dashboard{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
+{% block page_title %}Gösterge Paneli{% endblock %}
 
 {% block content %}
 
@@ -189,7 +189,7 @@
                 </h3>
                 <span class="badge bg-dark border border-secondary" id="anomalyCount">0</span>
             </div>
-            <div id="anomaliesContainer">
+            <div id="anomaliesContainer" style="max-height: 420px; overflow-y: auto; padding-right: 4px;">
                 <div class="rec-skeleton">
                     <div class="skeleton" style="height:70px;margin-bottom:8px;"></div>
                     <div class="skeleton" style="height:70px;"></div>
