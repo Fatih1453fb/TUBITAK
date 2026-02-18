@@ -1,9 +1,9 @@
 """
-Kampüs Enerji Optimizasyon Sistemi — Ana Uygulama
-===================================================
-Flask uygulamasını başlatır, API endpoint'lerini tanımlar,
 yapılandırmayı yükler ve veritabanını hazırlar.
 """
+
+import eventlet
+eventlet.monkey_patch()
 
 import os
 from datetime import datetime, timedelta
