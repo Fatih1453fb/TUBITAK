@@ -138,8 +138,8 @@ TÜBİTAK/
 
 ```bash
 # 1. Repoyu klonlayın
-git clone https://github.com/Fatih1453fb/T-B-TAK.git
-cd T-B-TAK
+git clone https://github.com/Fatih1453fb/TUBITAK.git
+cd TUBITAK
 
 # 2. Sanal ortam oluşturun
 python3 -m venv .venv
