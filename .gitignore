@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database
+*.db
+
+# ML model files (büyük dosyalar)
+models/*.pkl
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.save
+*.bak
+
+# Gemini / Agent
+.gemini/
+.agent/

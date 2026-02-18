@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}Ayarlar{% endblock %}
+{% block page_title %}Ayarlar{% endblock %}
+
+{% block content %}
+
+<!-- ================================================================ -->
+<!-- GENEL AYARLAR                                                     -->
+<!-- ================================================================ -->
+<div class="row g-4 mb-4">
+    <!-- Kampüs Bilgileri -->
+    <div class="col-lg-6">
+        <div class="card-dark animate-in h-100">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-mortarboard-fill me-2 text-accent"></i>
+                    Kampüs Bilgileri
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="settings-row">
+                    <div class="settings-label">Kampüs Adı</div>
+                    <div class="settings-value">İstinye Üniversitesi</div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">CO₂ Emisyon Faktörü</div>
+                    <div class="settings-value">
+                        <span class="text-accent fw-bold">0.43 kg/kWh</span>
+                        <small class="text-muted-s d-block mt-1">Türkiye şebeke ortalaması</small>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">Elektrik Birim Fiyatı</div>
+                    <div class="settings-value">
+                        <span class="text-blue fw-bold">3.19 ₺/kWh</span>
+                        <small class="text-muted-s d-block mt-1">EPDK ticari tarife</small>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">Veri Toplama Aralığı</div>
+                    <div class="settings-value">
+                        <span class="badge" style="background:rgba(0,255,136,.12);color:#00ff88">Her 5 dakika</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Ayarları -->
+    <div class="col-lg-6">
+        <div class="card-dark animate-in h-100">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-cpu me-2 text-purple"></i>
+                    AI Model Ayarları
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="settings-row">
+                    <div class="settings-label">Algoritma</div>
+                    <div class="settings-value">Random Forest Regressor</div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">Eğitim Periyodu</div>
+                    <div class="settings-value">
+                        <span class="badge" style="background:rgba(139,92,246,.12);color:#8b5cf6">Her 6 saatte</span>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">Feature Sayısı</div>
+                    <div class="settings-value">15 özellik</div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">Son Eğitim</div>
+                    <div class="settings-value" id="lastTrainTime">
+                        <div class="skeleton" style="width:120px;height:18px;"></div>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">Ortalama R²</div>
+                    <div class="settings-value fw-bold" id="settingsR2">
+                        <div class="skeleton" style="width:60px;height:18px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- BİLDİRİM + VERİ YÖNETİMİ                                         -->
+<!-- ================================================================ -->
+<div class="row g-4 mb-4">
+    <!-- Bildirim Ayarları -->
+    <div class="col-lg-6">
+        <div class="card-dark animate-in h-100">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-bell me-2 text-amber"></i>
+                    Bildirim Ayarları
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="settings-row">
+                    <div class="settings-label">Anomali Bildirimleri</div>
+                    <div class="settings-value">
+                        <span class="badge" style="background:rgba(0,255,136,.12);color:#00ff88">
+                            <i class="bi bi-check-circle me-1"></i>Aktif
+                        </span>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">Anomali Eşiği (Z-Score)</div>
+                    <div class="settings-value text-amber fw-bold">≥ 2.0</div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">Optimizasyon Önerileri</div>
+                    <div class="settings-value">
+                        <span class="badge" style="background:rgba(0,255,136,.12);color:#00ff88">
+                            <i class="bi bi-check-circle me-1"></i>Aktif
+                        </span>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">WebSocket Durumu</div>
+                    <div class="settings-value" id="wsStatus">
+                        <span class="badge" style="background:rgba(0,255,136,.12);color:#00ff88">
+                            <i class="bi bi-broadcast me-1"></i>Bağlı
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Veri Yönetimi -->
+    <div class="col-lg-6">
+        <div class="card-dark animate-in h-100">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-database me-2 text-blue"></i>
+                    Veri Yönetimi
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="settings-row">
+                    <div class="settings-label">Veritabanı</div>
+                    <div class="settings-value">SQLite (campus_energy.db)</div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">Toplam Kayıt</div>
+                    <div class="settings-value" id="totalRecords">
+                        <div class="skeleton" style="width:80px;height:18px;"></div>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">Veri Süresi</div>
+                    <div class="settings-value">Son 90 gün</div>
+                </div>
+                <div class="settings-row border-0">
+                    <div class="settings-label">Dışa Aktarma</div>
+                    <div class="settings-value">
+                        <button class="btn btn-sm btn-outline-accent" onclick="exportData()">
+                            <i class="bi bi-download me-1"></i> CSV İndir
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SİSTEM BİLGİLERİ                                                  -->
+<!-- ================================================================ -->
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-info-circle me-2 text-muted"></i>
+                    Sistem Bilgileri
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3">
+                    <div class="col">
+                        <div class="p-3 border border-secondary rounded-3" style="background:rgba(255,255,255,.02)">
+                            <small class="text-muted-s d-block mb-1">Platform Versiyonu</small>
+                            <strong class="text-white">v1.0.0</strong>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border border-secondary rounded-3" style="background:rgba(255,255,255,.02)">
+                            <small class="text-muted-s d-block mb-1">Python</small>
+                            <strong class="text-white">3.11+</strong>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border border-secondary rounded-3" style="background:rgba(255,255,255,.02)">
+                            <small class="text-muted-s d-block mb-1">Framework</small>
+                            <strong class="text-white">Flask 3.x + SocketIO</strong>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border border-secondary rounded-3" style="background:rgba(255,255,255,.02)">
+                            <small class="text-muted-s d-block mb-1">ML</small>
+                            <strong class="text-white">Scikit-Learn</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const res = await fetch('/api/dashboard/summary');
+            const d = await res.json();
+
+            // R² score
+            const r2El = document.getElementById('settingsR2');
+            if (d.avg_model_r2 != null) {
+                const pct = (d.avg_model_r2 * 100).toFixed(1) + '%';
+                r2El.textContent = pct;
+                r2El.style.color = d.avg_model_r2 >= 0.85 ? '#00ff88' : d.avg_model_r2 >= 0.70 ? '#f59e0b' : '#ef4444';
+            } else {
+                r2El.textContent = '--';
+            }
+
+            // Last train time
+            document.getElementById('lastTrainTime').textContent =
+                new Date().toLocaleString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+
+            // Total records estimate
+            document.getElementById('totalRecords').textContent =
+                (d.building_count || 0) * 24 * 90 + '+ satır (tahmini)';
+
+        } catch (e) {
+            console.error('Settings data error:', e);
+        }
+    });
+
+    function exportData() {
+        showToast('CSV dışa aktarma başlatıldı...', 'info');
+        fetch('/api/energy/export')
+            .then(r => r.blob())
+            .then(blob => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'energy_data.csv';
+                a.click();
+                showToast('CSV başarıyla indirildi!', 'success');
+            })
+            .catch(() => showToast('Dışa aktarma başarısız', 'error'));
+    }
+</script>
+
+<style>
+    .settings-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .settings-row:last-child {
+        border-bottom: none;
+    }
+
+    .settings-label {
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+        font-weight: 500;
+    }
+
+    .settings-value {
+        color: var(--text-primary);
+        font-size: 0.88rem;
+        text-align: right;
+    }
+</style>
+{% endblock %}

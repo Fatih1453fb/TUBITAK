@@ -1,0 +1,703 @@
+{% extends "base.html" %}
+
+{% block title %}System Overview{% endblock %}
+{% block page_title %}System Overview{% endblock %}
+
+{% block content %}
+
+<!-- Custom CSS for Architecture Diagram & Animations -->
+<style>
+    .arch-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 0;
+        overflow-x: auto;
+    }
+
+    .arch-node {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 16px 24px;
+        text-align: center;
+        min-width: 140px;
+        position: relative;
+        z-index: 2;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .arch-node:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        border-color: var(--accent-primary);
+    }
+
+    .arch-icon {
+        font-size: 2rem;
+        margin-bottom: 8px;
+        color: var(--accent-primary);
+    }
+
+    .arch-label {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+    }
+
+    .arch-arrow {
+        flex: 0 0 60px;
+        height: 2px;
+        background: var(--border-subtle);
+        position: relative;
+        margin: 0 10px;
+    }
+
+    .arch-arrow::after {
+        content: '';
+        position: absolute;
+        top: -4px;
+        right: 0;
+        width: 0;
+        height: 0;
+        border-left: 8px solid var(--border-subtle);
+        border-top: 5px solid transparent;
+        border-bottom: 5px solid transparent;
+    }
+
+    /* Flow Animation */
+    @keyframes flowPulse {
+        0% {
+            left: 0;
+            opacity: 0;
+        }
+
+        50% {
+            opacity: 1;
+        }
+
+        100% {
+            left: 100%;
+            opacity: 0;
+        }
+    }
+
+    .flow-particle {
+        position: absolute;
+        top: -1px;
+        left: 0;
+        width: 20px;
+        height: 4px;
+        background: var(--accent-primary);
+        border-radius: 2px;
+        box-shadow: 0 0 10px var(--accent-primary);
+        animation: flowPulse 2s infinite linear;
+    }
+
+    /* ── Modern Architecture Grid Cards ────────────────────── */
+    .arch-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        height: 100%;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .arch-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+        border-color: var(--ac-color, var(--accent-primary));
+    }
+
+    .arch-card-num {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .06);
+        color: var(--text-muted);
+        font-size: .65rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .arch-card-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+    }
+
+    .arch-card-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .arch-card-title {
+        color: var(--text-primary);
+        font-size: .88rem;
+        font-weight: 600;
+        margin: 0 0 2px;
+    }
+
+    .arch-card-desc {
+        color: var(--text-muted);
+        font-size: .75rem;
+        line-height: 1.35;
+        margin: 0;
+    }
+
+    .arch-card-arrow {
+        color: var(--ac-color, var(--text-muted));
+        font-size: .9rem;
+        opacity: .5;
+        flex-shrink: 0;
+    }
+
+    .tech-badge {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px;
+        cursor: default;
+    }
+
+    .tech-badge:hover {
+        background: rgba(0, 255, 136, 0.1);
+        border-color: var(--accent-primary);
+        color: var(--text-primary);
+        transform: scale(1.05);
+    }
+
+    .feature-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 24px;
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+
+    .feature-card:hover {
+        border-color: var(--accent-primary);
+        background: linear-gradient(145deg, var(--bg-secondary), rgba(0, 255, 136, 0.03));
+    }
+
+    .feature-icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 16px;
+        background: rgba(255, 255, 255, 0.03);
+    }
+</style>
+
+<!-- HEADER -->
+<div class="row mb-5 animate-in">
+    <div class="col-12 text-center">
+        <h2 class="display-5 fw-bold text-white mb-3">
+            <span class="text-accent">AI-Powered</span> Campus Energy Optimization Platform
+        </h2>
+        <p class="lead text-muted mx-auto" style="max-width: 700px;">
+            Gerçek zamanlı veri işleme, yapay zeka tahmini ve optimizasyon motoru ile bütünleşik,
+            akıllı kampüs enerji yönetim sistemi.
+        </p>
+    </div>
+</div>
+
+<!-- SECTION 1: PLATFORM AMACI (Features) -->
+<div class="row g-4 mb-5 animate-in" style="animation-delay: 0.1s;">
+    <div class="col-md-4 col-lg-20"> <!-- Custom 5 col layout fix: using auto grid -->
+        <!-- We use standard col-md-4 and wrap if needed, or flex -->
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-5 g-4 mb-5 animate-in" style="animation-delay: 0.1s;">
+    <div class="col">
+        <div class="feature-card">
+            <div class="feature-icon-box" style="color: #3b82f6; background: rgba(59, 130, 246, 0.1);">
+                <i class="bi bi-activity"></i>
+            </div>
+            <h5 class="text-white mb-2">Canlı İzleme</h5>
+            <p class="text-muted-s mb-0">Tüm binaların anlık enerji tüketimini WebSocket ile milisaniye bazında takip.
+            </p>
+        </div>
+    </div>
+    <div class="col">
+        <div class="feature-card">
+            <div class="feature-icon-box" style="color: #8b5cf6; background: rgba(139, 92, 246, 0.1);">
+                <i class="bi bi-cpu"></i>
+            </div>
+            <h5 class="text-white mb-2">AI Tahmin</h5>
+            <p class="text-muted-s mb-0">Random Forest algoritması ile gelecek 24 saat ve 7 günün tüketim öngörüsü.</p>
+        </div>
+    </div>
+    <div class="col">
+        <div class="feature-card">
+            <div class="feature-icon-box" style="color: #f59e0b; background: rgba(245, 158, 11, 0.1);">
+                <i class="bi bi-lightbulb"></i>
+            </div>
+            <h5 class="text-white mb-2">Optimizasyon</h5>
+            <p class="text-muted-s mb-0">Enerji verimliliği için otomatik strateji ve aksiyon önerileri.</p>
+        </div>
+    </div>
+    <div class="col">
+        <div class="feature-card">
+            <div class="feature-icon-box" style="color: #ef4444; background: rgba(239, 68, 68, 0.1);">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <h5 class="text-white mb-2">Anomali Tespiti</h5>
+            <p class="text-muted-s mb-0">Beklenmedik tüketim artışlarını Z-Score analizi ile anında yakalama.</p>
+        </div>
+    </div>
+    <div class="col">
+        <div class="feature-card">
+            <div class="feature-icon-box" style="color: #10b981; background: rgba(16, 185, 129, 0.1);">
+                <i class="bi bi-cloud-haze2"></i>
+            </div>
+            <h5 class="text-white mb-2">Karbon Takibi</h5>
+            <p class="text-muted-s mb-0">Enerji tüketiminin çevresel etkisini ve CO₂ ayak izini hesaplama.</p>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 2: SİSTEM MİMARİSİ — Horizontal Step Flow -->
+<div class="row mb-5 animate-in" style="animation-delay: 0.2s;">
+    <div class="col-12">
+        <div class="card-dark">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-diagram-3-fill me-2 text-primary"></i>
+                    Sistem Mimarisi
+                </h3>
+                <span class="badge" style="background:rgba(0,255,136,.12);color:var(--accent-green);font-size:.73rem">
+                    <i class="bi bi-arrow-repeat me-1"></i>Gerçek Zamanlı Pipeline
+                </span>
+            </div>
+            <div class="card-body" style="padding:32px 24px 28px">
+
+                <!-- Step Flow -->
+                <div class="step-flow">
+
+                    <!-- Step 1 -->
+                    <div class="step-item" style="--step-color:#3b82f6">
+                        <div class="step-circle">
+                            <i class="bi bi-hdd-network"></i>
+                            <!-- num removed --><span class="step-num" style="display:none">1</span>
+                        </div>
+                        <span class="step-label">Veri Toplama</span>
+                        <div class="step-tooltip">
+                            <strong>Data Collector</strong>
+                            <p>Binalardan anlık enerji verisi toplama ve veritabanına kaydetme. MQTT / REST
+                                entegrasyonu.</p>
+                        </div>
+                    </div>
+                    <div class="step-arrow"><span></span></div>
+
+                    <!-- Step 2 -->
+                    <div class="step-item" style="--step-color:#8b5cf6">
+                        <div class="step-circle">
+                            <i class="bi bi-clock-history"></i>
+                            <!-- num removed --><span class="step-num" style="display:none">2</span>
+                        </div>
+                        <span class="step-label">Zamanlayıcı</span>
+                        <div class="step-tooltip">
+                            <strong>Scheduler</strong>
+                            <p>APScheduler ile periyodik veri toplama, model eğitim ve optimizasyon döngüsü yönetimi.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="step-arrow"><span></span></div>
+
+                    <!-- Step 3 -->
+                    <div class="step-item" style="--step-color:#f59e0b">
+                        <div class="step-circle">
+                            <i class="bi bi-cpu"></i>
+                            <!-- num removed --><span class="step-num" style="display:none">3</span>
+                        </div>
+                        <span class="step-label">ML Model</span>
+                        <div class="step-tooltip">
+                            <strong>Machine Learning</strong>
+                            <p>Random Forest algoritması ile enerji tüketim tahmini, anomali tespiti ve özellik analizi.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="step-arrow"><span></span></div>
+
+                    <!-- Step 4 -->
+                    <div class="step-item" style="--step-color:#10b981">
+                        <div class="step-circle">
+                            <i class="bi bi-sliders"></i>
+                            <!-- num removed --><span class="step-num" style="display:none">4</span>
+                        </div>
+                        <span class="step-label">Optimizatör</span>
+                        <div class="step-tooltip">
+                            <strong>Optimizer Engine</strong>
+                            <p>Tahminlere dayanarak doluluk, tarife ve hava durumuna göre enerji tasarruf stratejileri
+                                üretme.</p>
+                        </div>
+                    </div>
+                    <div class="step-arrow"><span></span></div>
+
+                    <!-- Step 5 -->
+                    <div class="step-item" style="--step-color:#ef4444">
+                        <div class="step-circle">
+                            <i class="bi bi-bell"></i>
+                            <!-- num removed --><span class="step-num" style="display:none">5</span>
+                        </div>
+                        <span class="step-label">Uyarılar</span>
+                        <div class="step-tooltip">
+                            <strong>Alerts & WebSocket</strong>
+                            <p>Anomali bildirimleri, eşik uyarıları ve gerçek zamanlı veri dağıtımı (Socket.IO).</p>
+                        </div>
+                    </div>
+                    <div class="step-arrow"><span></span></div>
+
+                    <!-- Step 6 -->
+                    <div class="step-item" style="--step-color:#00ff88">
+                        <div class="step-circle">
+                            <i class="bi bi-laptop"></i>
+                            <!-- num removed --><span class="step-num" style="display:none">6</span>
+                        </div>
+                        <span class="step-label">Dashboard</span>
+                        <div class="step-tooltip">
+                            <strong>Dashboard Arayüzü</strong>
+                            <p>İnteraktif görselleştirme, gerçek zamanlı grafikler ve kullanıcı kontrol paneli.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ── Horizontal Step Flow ─────────────────────── */
+    .step-flow {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0;
+        padding: 16px 0 8px;
+        overflow: visible;
+    }
+
+    /* Individual step */
+    .step-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        cursor: pointer;
+        z-index: 1;
+    }
+
+    /* Circle */
+    .step-circle {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .04);
+        border: 2px solid var(--step-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: var(--step-color);
+        position: relative;
+        transition: all .35s ease;
+        box-shadow: 0 0 0 0 transparent;
+    }
+
+    .step-item:hover .step-circle {
+        background: color-mix(in srgb, var(--step-color) 15%, transparent);
+        box-shadow: 0 0 24px color-mix(in srgb, var(--step-color) 35%, transparent),
+            0 0 48px color-mix(in srgb, var(--step-color) 12%, transparent);
+        transform: scale(1.12);
+    }
+
+    .step-num {
+        display: none;
+    }
+
+    /* Label under circle */
+    .step-label {
+        margin-top: 10px;
+        font-size: .78rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        transition: color .3s ease;
+    }
+
+    .step-item:hover .step-label {
+        color: var(--step-color);
+    }
+
+    /* Tooltip on hover — appears ABOVE the circle */
+    .step-tooltip {
+        position: absolute;
+        bottom: calc(100% + 14px);
+        left: 50%;
+        transform: translateX(-50%) translateY(-6px);
+        width: 220px;
+        background: #161d2d;
+        border: 1px solid var(--step-color);
+        border-radius: 10px;
+        padding: 14px;
+        opacity: 0;
+        visibility: hidden;
+        transition: all .3s ease;
+        z-index: 100;
+        pointer-events: none;
+        box-shadow: 0 -4px 24px rgba(0, 0, 0, .5);
+    }
+
+    .step-tooltip::after {
+        content: '';
+        position: absolute;
+        bottom: -6px;
+        left: 50%;
+        transform: translateX(-50%) rotate(45deg);
+        width: 10px;
+        height: 10px;
+        background: #161d2d;
+        border-right: 1px solid var(--step-color);
+        border-bottom: 1px solid var(--step-color);
+    }
+
+    .step-item:hover .step-tooltip {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .step-tooltip strong {
+        color: var(--step-color);
+        font-size: .82rem;
+        display: block;
+        margin-bottom: 6px;
+    }
+
+    .step-tooltip p {
+        color: var(--text-secondary);
+        font-size: .73rem;
+        line-height: 1.45;
+        margin: 0;
+    }
+
+    /* Arrow connector */
+    .step-arrow {
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        height: 64px;
+    }
+
+    .step-arrow span {
+        display: block;
+        width: 40px;
+        height: 2px;
+        background: repeating-linear-gradient(90deg,
+                var(--border-color) 0 6px,
+                transparent 6px 10px);
+        position: relative;
+        animation: arrowFlow 1.2s linear infinite;
+    }
+
+    .step-arrow span::after {
+        content: '';
+        position: absolute;
+        right: -6px;
+        top: -4px;
+        border-left: 8px solid var(--accent-green);
+        border-top: 5px solid transparent;
+        border-bottom: 5px solid transparent;
+        opacity: .6;
+    }
+
+    @keyframes arrowFlow {
+        0% {
+            opacity: .4;
+        }
+
+        50% {
+            opacity: 1;
+        }
+
+        100% {
+            opacity: .4;
+        }
+    }
+
+    /* Responsive: Wrap on small screens */
+    @media (max-width: 767px) {
+        .step-flow {
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .step-arrow {
+            display: none;
+        }
+    }
+</style>
+
+<!-- SECTION 3 & 4: AI SUMMARY & CARBON -->
+<div class="row g-4 mb-5 animate-in" style="animation-delay: 0.3s;">
+    <!-- AI MODEL ÖZETİ -->
+    <div class="col-lg-6">
+        <div class="card-dark h-100">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-robot me-2 text-purple"></i>
+                    AI Model Performansı
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <div class="text-muted-s">Ortalama Model Başarısı</div>
+                        <div class="display-6 fw-bold text-white mt-1" id="sysR2">--</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted-s">Hata Oranı (MAE)</div>
+                        <div class="fs-4 fw-bold text-muted mt-1">~0.15</div>
+                    </div>
+                </div>
+
+                <h6 class="text-muted-s text-uppercase mb-3 mt-4 fw-bold">Kullanılan Feature Grupları</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge bg-dark border border-secondary text-muted">Mevsimsellik (Ay, Gün, Saat)</span>
+                    <span class="badge bg-dark border border-secondary text-muted">Hava Durumu (Sıcaklık)</span>
+                    <span class="badge bg-dark border border-secondary text-muted">Geçmiş Veri (Lag/Rolling)</span>
+                    <span class="badge bg-dark border border-secondary text-muted">Doluluk Oranları</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KARBON ETKİSİ -->
+    <div class="col-lg-6">
+        <div class="card-dark h-100">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-leaf me-2 text-green" style="color: #10b981;"></i>
+                    Çevresel Etki Analizi
+                </h3>
+                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                    1 kWh ≈ 0.43 kg CO₂
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="p-3 border border-secondary rounded-3 bg-dark-subtle">
+                            <i class="bi bi-cloud-arrow-up fs-3 mb-2 d-block text-muted"></i>
+                            <span class="d-block text-muted-s">Aylık Toplam Emisyon</span>
+                            <strong class="fs-4 text-white" id="sysCo2Total">--</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 border border-success border-opacity-25 rounded-3"
+                            style="background: rgba(16, 185, 129, 0.05);">
+                            <i class="bi bi-arrow-down-circle fs-3 mb-2 d-block" style="color: #10b981;"></i>
+                            <span class="d-block text-muted-s">Potansiyel Azaltım</span>
+                            <strong class="fs-4" style="color: #10b981;" id="sysCo2Saved">--</strong>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted-s mt-3 mb-0">
+                    * Hesaplamalar Türkiye elektrik şebekesi ortalama karbon emisyon faktörü (0.43 kg/kWh) baz alınarak
+                    yapılmaktadır.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION 5: TEKNOLOJİLER -->
+<div class="row animate-in" style="animation-delay: 0.4s;">
+    <div class="col-12 text-center">
+        <h5 class="text-muted-s text-uppercase mb-4">Bu Platformu Güçlendiren Teknolojiler</h5>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+            <div class="tech-badge" data-bs-toggle="tooltip" data-bs-placement="top"
+                title="Web framework — API ve sayfa sunumu">
+                <i class="bi bi-filetype-py"></i> Python / Flask
+            </div>
+            <div class="tech-badge" data-bs-toggle="tooltip" data-bs-placement="top"
+                title="Makine öğrenimi — Random Forest tahmin modeli">
+                <i class="bi bi-cpu"></i> Scikit-Learn (Random Forest)
+            </div>
+            <div class="tech-badge" data-bs-toggle="tooltip" data-bs-placement="top"
+                title="Gerçek zamanlı WebSocket iletişimi">
+                <i class="bi bi-broadcast"></i> Flask-SocketIO
+            </div>
+            <div class="tech-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Veritabanı ve ORM katmanı">
+                <i class="bi bi-database"></i> SQLite / SQLAlchemy
+            </div>
+            <div class="tech-badge" data-bs-toggle="tooltip" data-bs-placement="top"
+                title="Otomatik veri toplama zamanlayıcı">
+                <i class="bi bi-clock"></i> APScheduler
+            </div>
+            <div class="tech-badge" data-bs-toggle="tooltip" data-bs-placement="top"
+                title="İnteraktif grafik ve görselleştirme motoru">
+                <i class="bi bi-bar-chart"></i> Chart.js
+            </div>
+            <div class="tech-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Responsive UI framework">
+                <i class="bi bi-bootstrap"></i> Bootstrap 5
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const res = await fetch('/api/dashboard/summary');
+            const d = await res.json();
+
+            // R2
+            const r2 = d.avg_model_r2 != null ? (d.avg_model_r2 * 100).toFixed(1) + '%' : '--';
+            document.getElementById('sysR2').textContent = r2;
+
+            // CO2
+            const fmt = n => n != null ? n.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' kg' : '--';
+            document.getElementById('sysCo2Total').textContent = fmt(d.monthly_co2_kg);
+            document.getElementById('sysCo2Saved').textContent = fmt(d.potential_co2_reduction_kg);
+
+        } catch (e) {
+            console.error('System overview data fetch error:', e);
+        }
+    });
+</script>
+{% endblock %}

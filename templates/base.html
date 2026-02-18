@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="tr" data-bs-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Kampüs Sürdürülebilirlik ve Enerji Optimizasyon Sistemi — AI destekli enerji yönetim paneli">
+    <title>{% block title %}Dashboard{% endblock %} — Kampüs Enerji</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Plotly -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- ============================================================ -->
+    <!-- SIDEBAR                                                       -->
+    <!-- ============================================================ -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Logo -->
+        <div class="sidebar-brand">
+            <i class="bi bi-lightning-charge-fill brand-icon"></i>
+            <span class="brand-text">Enerji<span class="text-accent">OS</span></span>
+        </div>
+
+        <!-- Navigasyon -->
+        <nav class="sidebar-nav">
+            <a href="/"
+                class="nav-link {% if request.endpoint == 'dashboard' or request.path == '/' %}active{% endif %}">
+                <i class="bi bi-grid-1x2-fill"></i>
+                <span>Gösterge Paneli</span>
+            </a>
+            <a href="/analytics" class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">
+                <i class="bi bi-graph-up"></i>
+                <span>Analitik</span>
+            </a>
+            <a href="/predictions" class="nav-link {% if request.endpoint == 'predictions' %}active{% endif %}">
+                <i class="bi bi-cpu"></i>
+                <span>Tahminler</span>
+            </a>
+            <a href="/system_overview" class="nav-link {% if request.endpoint == 'system_overview' %}active{% endif %}">
+                <i class="bi bi-cpu-fill"></i>
+                <span>Sistem Genel Bakış</span>
+            </a>
+            <a href="/buildings" class="nav-link {% if request.endpoint == 'buildings' %}active{% endif %}">
+                <i class="bi bi-building"></i>
+                <span>Binalar</span>
+            </a>
+            <a href="/settings" class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}">
+                <i class="bi bi-gear"></i>
+                <span>Ayarlar</span>
+            </a>
+        </nav>
+
+        <!-- Alt bilgi -->
+        <div class="sidebar-footer">
+            <div class="sidebar-footer-badge">
+                <i class="bi bi-check-circle-fill text-accent"></i>
+                <span>Sistem Aktif</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ============================================================ -->
+    <!-- ANA İÇERİK ALANI                                             -->
+    <!-- ============================================================ -->
+    <div class="main-wrapper" id="mainWrapper">
+
+        <!-- NAVBAR -->
+        <header class="top-navbar">
+            <div class="navbar-left">
+                <button class="btn btn-icon sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+            </div>
+
+            <div class="navbar-center">
+                <span class="campus-name">
+                    <i class="bi bi-mortarboard-fill"></i>
+                    İstinye Üniversitesi — Kampüs Enerji Yönetimi
+                </span>
+            </div>
+
+            <div class="navbar-right">
+                <!-- Tarih-saat -->
+                <div class="datetime-widget" id="datetimeWidget">
+                    <i class="bi bi-clock"></i>
+                    <span id="currentTime">--:--</span>
+                </div>
+
+                <!-- Model doğruluk badge -->
+                <div class="accuracy-badge" id="accuracyBadge" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                    data-bs-html="true"
+                    title="<strong>AI Model Doğruluk (R² Skoru)</strong><br>%85+ → Mükemmel<br>%70-85 → İyi<br>%70↓ → Düşük">
+                    <i class="bi bi-bullseye"></i>
+                    <span id="modelAccuracy">--</span>
+                </div>
+
+                <!-- Bildirimler -->
+                <button class="btn btn-icon notification-btn" id="notificationBtn" aria-label="Notifications"
+                    title="Bekleyen Öneriler" onclick="showNotificationSummary()">
+                    <i class="bi bi-bell"></i>
+                    <span class="notification-dot" id="notifDot"></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- SAYFA İÇERİĞİ -->
+        <main class="page-content">
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TOAST BİLDİRİM ALANI                                         -->
+    <!-- ============================================================ -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Temel JS -->
+    <script>
+        // ── Sidebar toggle ──────────────────────────────────────────
+        const sidebar = document.getElementById('sidebar');
+        const mainWrapper = document.getElementById('mainWrapper');
+        const toggle = document.getElementById('sidebarToggle');
+
+        toggle.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            mainWrapper.classList.toggle('expanded');
+        });
+
+        // Mobilde overlay kapat
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth < 992 &&
+                !sidebar.contains(e.target) &&
+                !toggle.contains(e.target) &&
+                !sidebar.classList.contains('collapsed')) {
+                sidebar.classList.add('collapsed');
+                mainWrapper.classList.add('expanded');
+            }
+        });
+
+        // ── Saat güncelleme ─────────────────────────────────────────
+        function updateClock() {
+            const now = new Date();
+            const opts = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            document.getElementById('currentTime').textContent = now.toLocaleDateString('tr-TR', opts);
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // ── Dashboard KPI'ları (navbar badge'i) ─────────────────────
+        async function loadNavbarMetrics() {
+            try {
+                const res = await fetch('/api/dashboard/summary');
+                const data = await res.json();
+
+                if (data.avg_model_r2 !== undefined) {
+                    const pct = (data.avg_model_r2 * 100).toFixed(1);
+                    document.getElementById('modelAccuracy').textContent = pct + '%';
+
+                    const badge = document.getElementById('accuracyBadge');
+                    if (data.avg_model_r2 >= 0.85) badge.classList.add('badge-green');
+                    else if (data.avg_model_r2 >= 0.70) badge.classList.add('badge-amber');
+                    else badge.classList.add('badge-red');
+                }
+
+                if (data.pending_recommendations > 0) {
+                    document.getElementById('notifDot').style.display = 'block';
+                }
+            } catch (e) {
+                console.warn('Navbar metrikleri yüklenemedi:', e);
+            }
+        }
+        loadNavbarMetrics();
+
+        // ── Bootstrap tooltips ───────────────────────────────────────
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+            new bootstrap.Tooltip(el);
+        });
+
+        // ── Toast yardımcısı ────────────────────────────────────────
+        function showToast(message, type = 'info') {
+            const colors = { info: 'var(--accent-blue)', success: 'var(--accent-green)', warning: 'var(--accent-amber)', error: 'var(--accent-red)' };
+            const icons = { info: 'info-circle', success: 'check-circle', warning: 'exclamation-triangle', error: 'x-circle' };
+
+            const html = `
+                <div class="toast align-items-center border-0 show" role="alert"
+                     style="background:var(--bg-card);border-left:3px solid ${colors[type]}!important;">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi bi-${icons[type]}" style="color:${colors[type]}"></i>
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>`;
+
+            const container = document.getElementById('toastContainer');
+            container.insertAdjacentHTML('beforeend', html);
+
+            // 5 saniye sonra kaldır
+            setTimeout(() => {
+                const first = container.querySelector('.toast');
+                if (first) first.remove();
+            }, 5000);
+        }
+        function showNotificationSummary() {
+            const hasDot = document.getElementById('notifDot').style.display !== 'none';
+            if (hasDot) {
+                showToast('Bekleyen enerji tasarruf önerileriniz var. Gösterge Paneli sayfasından inceleyebilirsiniz.', 'info');
+            } else {
+                showToast('Şu an aktif bir bildiriminiz bulunmuyor.', 'success');
+            }
+        }
+    </script>
+
+    <!-- Sayfa-spesifik JS bloku -->
+    {% block scripts %}{% endblock %}
+
+</body>
+
+</html>

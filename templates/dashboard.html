@@ -1,0 +1,1041 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ================================================================ -->
+<!-- KPI KARTLARI                                                      -->
+<!-- ================================================================ -->
+<div class="row row-cols-1 row-cols-md-3 row-cols-xl-6 g-3 mb-4 align-items-stretch">
+
+    <!-- Anlık Toplam Tüketim -->
+    <div class="col">
+        <div class="card-dark kpi-card glow-green animate-in h-100" id="kpi-realtime">
+            <i class="bi bi-lightning-charge-fill kpi-icon"></i>
+            <div class="kpi-label">Anlık Toplam Tüketim</div>
+            <div class="kpi-value text-accent" id="kpiRealtimeValue">
+                <div class="skeleton" style="width:120px;height:32px;"></div>
+            </div>
+            <div class="kpi-sub" id="kpiRealtimeSub">
+                <span class="text-muted-s">kWh / saat</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aylık Maliyet -->
+    <div class="col">
+        <div class="card-dark kpi-card glow-blue animate-in h-100" id="kpi-cost">
+            <i class="bi bi-wallet2 kpi-icon"></i>
+            <div class="kpi-label">Aylık Maliyet</div>
+            <div class="kpi-value text-blue kpi-value-auto" id="kpiCostValue">
+                <div class="skeleton" style="width:140px;height:32px;"></div>
+            </div>
+            <div class="kpi-sub" id="kpiCostSub">
+                <span class="text-muted-s">Türk Lirası</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aylık Karbon Emisyonu -->
+    <div class="col">
+        <div class="card-dark kpi-card animate-in h-100" style="border-left:3px solid #10b981">
+            <i class="bi bi-cloud-haze2 kpi-icon" style="color:#10b981"></i>
+            <div class="kpi-label">Aylık Karbon</div>
+            <div class="kpi-value" style="color:#10b981" id="kpiCo2MonthlyValue">
+                <div class="skeleton" style="width:110px;height:32px;"></div>
+            </div>
+            <div class="kpi-sub">
+                <span class="text-muted-s" id="kpiCo2MonthlySub">kg CO₂</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Ortalama R² -->
+    <div class="col">
+        <div class="card-dark kpi-card glow-purple animate-in h-100" id="kpi-r2">
+            <i class="bi bi-cpu kpi-icon"></i>
+            <div class="kpi-label">Model Doğruluğu (R²)</div>
+            <div class="kpi-value" style="color:var(--accent-purple)" id="kpiR2Value">
+                <div class="skeleton" style="width:100px;height:32px;"></div>
+            </div>
+            <div class="kpi-sub">
+                <span class="text-muted-s" id="kpiR2Sub">Random Forest v2</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toplam Tasarruf Potansiyeli -->
+    <div class="col">
+        <div class="card-dark kpi-card glow-amber animate-in h-100" id="kpi-savings">
+            <i class="bi bi-piggy-bank kpi-icon"></i>
+            <div class="kpi-label">Tasarruf Potansiyeli</div>
+            <div class="kpi-value text-amber" id="kpiSavingsValue">
+                <div class="skeleton" style="width:110px;height:32px;"></div>
+            </div>
+            <div class="kpi-sub">
+                <span class="text-muted-s" id="kpiSavingsSub">aktif önerilerden</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Potansiyel CO₂ Azaltımı -->
+    <div class="col">
+        <div class="card-dark kpi-card animate-in h-100" id="kpiCo2ReductionCard"
+            style="border-left:3px solid #34d399; position: relative;">
+            <i class="bi bi-recycle kpi-icon" style="color:#34d399"></i>
+            <div class="kpi-label">CO₂ Azaltımı</div>
+            <div class="kpi-value" style="color:#34d399" id="kpiCo2ReductionValue">
+                <div class="skeleton" style="width:100px;height:32px;"></div>
+            </div>
+            <div class="kpi-sub">
+                <span class="text-muted-s" id="kpiCo2ReductionSub">potansiyel kg CO₂</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ================================================================ -->
+<!-- ENERJİ GRAFİĞİ + TASARRUF STRATEJİ (YAN YANA)                     -->
+<!-- ================================================================ -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-graph-up me-2 text-accent"></i>
+                    Enerji Tüketimi & AI Tahmin
+                </h3>
+                <div class="chart-controls">
+                    <select class="form-select form-select-sm chart-building-select" id="chartBuildingSelect">
+                        <!-- JS ile doldurulacak -->
+                    </select>
+                </div>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:360px;">
+                <canvas id="energyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Radial Savings Breakdown -->
+    <div class="col-lg-4">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-pie-chart me-2 text-purple"></i>
+                    Tasarruf Strateji Dağılımı
+                </h3>
+            </div>
+            <div class="chart-wrapper"
+                style="position:relative;height:360px;display:flex;align-items:center;justify-content:center;">
+                <canvas id="savingsDoughnutChart"></canvas>
+                <!-- Center Text Overlay -->
+                <div
+                    style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;">
+                    <div id="savingsTotalVal" style="font-size:1.5rem;font-weight:700;color:#fff;">--</div>
+                    <div style="font-size:0.75rem;color:#94a3b8;">Toplam kWh</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- ÖNERİLER + ANOMALİLER                                             -->
+<!-- ================================================================ -->
+<div class="row g-3">
+
+    <!-- Aktif Öneriler -->
+    <div class="col-lg-7">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-lightbulb me-2 text-amber"></i>
+                    Aktif Optimizasyon Önerileri
+                </h3>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-dark border border-secondary" id="recCount">0</span>
+                    <span class="text-muted-s" style="font-size:.72rem" id="recPageInfo"></span>
+                </div>
+            </div>
+            <div id="recommendationsContainer" style="max-height: 420px; overflow-y: auto; padding-right: 4px;">
+                <div class="rec-skeleton">
+                    <div class="skeleton" style="height:50px;margin-bottom:6px;"></div>
+                    <div class="skeleton" style="height:50px;margin-bottom:6px;"></div>
+                    <div class="skeleton" style="height:50px;"></div>
+                </div>
+            </div>
+            <div class="rec-pagination mt-2" id="recPagination" style="display:none;">
+                <button class="btn btn-sm btn-outline-secondary" id="recPrevBtn" onclick="recChangePage(-1)">
+                    <i class="bi bi-chevron-left"></i> Önceki
+                </button>
+                <button class="btn btn-sm btn-outline-accent" id="recNextBtn" onclick="recChangePage(1)">
+                    Sonraki <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Anomaliler -->
+    <div class="col-lg-5">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-exclamation-triangle me-2 text-red"></i>
+                    Anomali Tespitleri
+                </h3>
+                <span class="badge bg-dark border border-secondary" id="anomalyCount">0</span>
+            </div>
+            <div id="anomaliesContainer">
+                <div class="rec-skeleton">
+                    <div class="skeleton" style="height:70px;margin-bottom:8px;"></div>
+                    <div class="skeleton" style="height:70px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script
+    src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+
+<!-- Socket.IO CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+    // ═══════════════════════════════════════════════════════════════════
+    // DASHBOARD  — client-side JS
+    // ═══════════════════════════════════════════════════════════════════
+
+    let energyChart = null;
+    let allBuildings = [];
+    let socket = null;
+
+    // ── Yardımcılar ─────────────────────────────────────────────────
+    function fmt(n) { return n != null ? n.toLocaleString('tr-TR') : '--'; }
+    function fmtKwh(n) { return n != null ? n.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) : '--'; }
+    function fmtTL(n) { return n != null ? n.toLocaleString('tr-TR', { maximumFractionDigits: 0 }) + ' ₺' : '--'; }
+    function fmtPct(n) { return n != null ? (n * 100).toFixed(1) + '%' : '--'; }
+
+    // ── 1) Dashboard Özet KPI ────────────────────────────────────────
+    async function fetchDashboardSummary() {
+        try {
+            const res = await fetch('/api/dashboard/summary');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const d = await res.json();
+
+            // Anlık tüketim
+            document.getElementById('kpiRealtimeValue').textContent = fmtKwh(d.total_current_kwh);
+            document.getElementById('kpiRealtimeSub').innerHTML =
+                `<span class="text-muted-s">kWh / saat</span>` +
+                (d.building_count ? ` <span class="text-muted-s">· ${d.building_count} bina</span>` : '');
+
+            // Aylık maliyet — büyük sayılarda font küçült
+            const costEl = document.getElementById('kpiCostValue');
+            costEl.textContent = fmtTL(d.monthly_cost_tl);
+            if (d.monthly_cost_tl >= 100000) costEl.style.fontSize = '1.2rem';
+            else if (d.monthly_cost_tl >= 20000) costEl.style.fontSize = '1.5rem';
+            else costEl.style.fontSize = '';
+            document.getElementById('kpiCostSub').innerHTML =
+                `<span class="text-muted-s">${fmtKwh(d.monthly_kwh)} kWh bu ay</span>`;
+
+            // Model R²
+            document.getElementById('kpiR2Value').textContent = fmtPct(d.avg_model_r2);
+
+            // Tasarruf potansiyeli
+            const cs = d.campus_savings || {};
+            document.getElementById('kpiSavingsValue').textContent = fmtKwh(cs.total_potential_saving_kwh);
+            document.getElementById('kpiSavingsSub').innerHTML =
+                `<span class="text-muted-s">${cs.total_pending_recommendations || 0} aktif öneriden</span>`;
+
+            // Aylık karbon emisyonu
+            document.getElementById('kpiCo2MonthlyValue').textContent =
+                d.monthly_co2_kg != null ? fmtKwh(d.monthly_co2_kg) : '--';
+            document.getElementById('kpiCo2MonthlySub').textContent =
+                `kg CO₂ (${fmtKwh(d.monthly_kwh)} kWh)`;
+
+            // Potansiyel CO₂ azaltımı
+            document.getElementById('kpiCo2ReductionValue').textContent =
+                d.potential_co2_reduction_kg != null ? fmtKwh(d.potential_co2_reduction_kg) : '--';
+            document.getElementById('kpiCo2ReductionSub').textContent =
+                `${cs.total_pending_recommendations || 0} öneriden kg CO₂`;
+
+        } catch (e) {
+            console.error('Dashboard KPI hatası:', e);
+            showToast('Dashboard verileri yüklenemedi: ' + e.message, 'error');
+        }
+    }
+
+    // ── 2) Bina listesi + select doldur ──────────────────────────────
+    async function fetchBuildings() {
+        try {
+            const res = await fetch('/api/buildings');
+            const d = await res.json();
+            allBuildings = d.buildings || [];
+
+            const sel = document.getElementById('chartBuildingSelect');
+            sel.innerHTML = '';
+            allBuildings.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.id;
+                opt.textContent = b.name;
+                sel.appendChild(opt);
+            });
+
+            sel.addEventListener('change', () => {
+                const id = parseInt(sel.value);
+                fetchPredictions(id);
+                fetchRealtimeEnergy(id);
+            });
+
+        } catch (e) {
+            console.error('Bina listesi hatası:', e);
+        }
+    }
+
+    // ── 3) Gerçek zamanlı enerji verisi ──────────────────────────────
+    async function fetchRealtimeEnergy(buildingId) {
+        try {
+            const bid = buildingId || (allBuildings[0] ? allBuildings[0].id : 1);
+            const res = await fetch(`/api/energy/history?building_id=${bid}&days=3`);
+            const d = await res.json();
+
+            const readings = d.readings || [];
+            const labels = readings.map(r => r.timestamp);
+            const values = readings.map(r => r.total_kwh);
+
+            updateChart('actual', labels, values);
+        } catch (e) {
+            console.error('Enerji verisi hatası:', e);
+            showToast('Enerji verileri yüklenemedi', 'error');
+        }
+    }
+
+    // ── 4) AI Tahminleri ─────────────────────────────────────────────
+    async function fetchPredictions(buildingId) {
+        try {
+            const bid = buildingId || (allBuildings[0] ? allBuildings[0].id : 1);
+            const res = await fetch(`/api/predictions/24h?building_id=${bid}`);
+            const d = await res.json();
+
+            const preds = d.predictions || [];
+            const labels = preds.map(p => p.timestamp);
+            const values = preds.map(p => p.predicted_kwh);
+            const upper = preds.map(p => p.confidence_upper);
+            const lower = preds.map(p => p.confidence_lower);
+
+            updateChart('prediction', labels, values, upper, lower);
+        } catch (e) {
+            console.error('Tahmin hatası:', e);
+            showToast('Tahmin verileri yüklenemedi', 'error');
+        }
+    }
+
+    // ── 5) Öneriler (Pagination destekli) ──────────────────────────
+    let allRecs = [];
+    let recPage = 0;
+    const REC_PER_PAGE = 10;
+
+    const PRIORITY_LABELS = { high: 'Yüksek', medium: 'Orta', low: 'Düşük' };
+
+    async function fetchRecommendations() {
+        try {
+            const res = await fetch('/api/recommendations?status=pending');
+            const d = await res.json();
+            allRecs = d.recommendations || [];
+            recPage = 0;
+
+            document.getElementById('recCount').textContent = allRecs.length;
+            renderRecommendationPage();
+        } catch (e) {
+            console.error('Öneri hatası:', e);
+            showToast('Öneriler yüklenemedi', 'error');
+        }
+    }
+
+    function renderRecommendationPage() {
+        const container = document.getElementById('recommendationsContainer');
+        const pagination = document.getElementById('recPagination');
+        const pageInfo = document.getElementById('recPageInfo');
+
+        if (allRecs.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="bi bi-check-circle text-accent" style="font-size:2rem;"></i>
+                    <p class="text-muted-s mt-2">Aktif öneri bulunmuyor.</p>
+                </div>`;
+            pagination.style.display = 'none';
+            pageInfo.textContent = '';
+            return;
+        }
+
+        const totalPages = Math.ceil(allRecs.length / REC_PER_PAGE);
+        const start = recPage * REC_PER_PAGE;
+        const pageRecs = allRecs.slice(start, start + REC_PER_PAGE);
+
+        container.innerHTML = pageRecs.map(r => `
+            <div class="rec-row" data-id="${r.id}">
+                <span class="badge-priority-fixed ${r.priority}">${PRIORITY_LABELS[r.priority] || r.priority}</span>
+                <div class="rec-row-body">
+                    <span class="rec-row-text">${r.recommendation_text}</span>
+                </div>
+                <span class="rec-row-saving text-accent"><i class="bi bi-lightning-charge"></i> ${fmtKwh(r.estimated_saving_kwh)} kWh</span>
+                <div class="rec-row-actions">
+                    <button class="btn btn-sm btn-outline-accent" onclick="applyRec(${r.id})" title="Uygula">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="dismissRec(${r.id})" title="Reddet">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        // Pagination controls
+        if (totalPages > 1) {
+            pagination.style.display = 'flex';
+            pageInfo.textContent = `${recPage + 1} / ${totalPages}`;
+            document.getElementById('recPrevBtn').disabled = recPage === 0;
+            document.getElementById('recNextBtn').disabled = recPage >= totalPages - 1;
+        } else {
+            pagination.style.display = 'none';
+            pageInfo.textContent = '';
+        }
+    }
+
+    function recChangePage(delta) {
+        const totalPages = Math.ceil(allRecs.length / REC_PER_PAGE);
+        recPage = Math.max(0, Math.min(totalPages - 1, recPage + delta));
+        renderRecommendationPage();
+    }
+
+    // ── 6) Anomaliler ────────────────────────────────────────────────
+    async function fetchAnomalies() {
+        const container = document.getElementById('anomaliesContainer');
+        let allAnomalies = [];
+
+        try {
+            // İlk 3 binanın anomalilerini topla
+            for (const b of allBuildings.slice(0, 5)) {
+                try {
+                    const res = await fetch(`/api/anomalies?building_id=${b.id}`);
+                    const d = await res.json();
+                    if (d.anomalies) {
+                        d.anomalies.forEach(a => { a.building_name = b.name; });
+                        allAnomalies = allAnomalies.concat(d.anomalies);
+                    }
+                } catch (_) { /* skip */ }
+            }
+
+            document.getElementById('anomalyCount').textContent = allAnomalies.length;
+
+            if (allAnomalies.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi bi-shield-check text-accent" style="font-size:2rem;"></i>
+                        <p class="text-muted-s mt-2">Anomali tespit edilmedi.</p>
+                    </div>`;
+                return;
+            }
+
+            // En yüksek z-score'a göre sırala, en fazla 8 göster
+            allAnomalies.sort((a, b) => (b.z_score || 0) - (a.z_score || 0));
+            const top = allAnomalies.slice(0, 8);
+
+            container.innerHTML = top.map(a => {
+                const severity = (a.z_score || 0) > 3 ? 'critical' : 'warning';
+                const ts = a.timestamp ? new Date(a.timestamp).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+                return `
+                    <div class="alert-item ${severity}">
+                        <i class="bi bi-exclamation-octagon-fill ${severity === 'critical' ? 'text-red' : 'text-amber'}"></i>
+                        <div class="alert-body">
+                            <div class="alert-title">${a.building_name || 'Bilinmeyen'}</div>
+                            <div class="alert-detail text-muted-s">
+                                ${ts} · Beklenen: ${fmtKwh(a.expected_kwh)} kWh · Ölçülen: ${fmtKwh(a.total_kwh)} kWh
+                            </div>
+                            <div class="alert-zscore">
+                                Z-skoru: <strong class="${severity === 'critical' ? 'text-red' : 'text-amber'}">${(a.z_score || 0).toFixed(1)}</strong>
+                                · Sapma: %${(a.deviation_percent || 0).toFixed(1)}
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+
+        } catch (e) {
+            console.error('Anomali hatası:', e);
+            showToast('Anomali verileri yüklenemedi', 'error');
+        }
+    }
+
+    // ── Öneri işlemleri ──────────────────────────────────────────────
+    async function applyRec(id) {
+        try {
+            // 1. Öneriyi bul (Animasyon için veri lazım)
+            const recEl = document.querySelector(`.rec-card[data-id="${id}"]`);
+            let savingKwh = 0;
+            if (recEl) {
+                // Basitçe text parsing veya data attribute ile alabilirdik.
+                // Şimdilik DOM'dan varsayım yapalım veya fetch ile detay alalım.
+                // Daha temiz: fetchRecDetails(id) ama elimizde liste var zaten.
+                // En kolayı: fetch response bize güncel "recommendation" dönerse harika.
+            }
+
+            const res = await fetch(`/api/recommendations/${id}/apply`, { method: 'POST' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const d = await res.json();
+
+            showToast('Öneri uygulandı ✓', 'success');
+
+            // ── Animasyon Tetikleme ──────────────────────────────
+            if (d.recommendation && d.recommendation.estimated_saving_kwh) {
+                const kwh = d.recommendation.estimated_saving_kwh;
+                const co2Saved = kwh * 0.43; // Yaklaşık katsayı (TR şebeke)
+
+                triggerCo2Animation(co2Saved);
+            }
+
+            fetchRecommendations();
+            fetchDashboardSummary();
+        } catch (e) {
+            showToast('İşlem başarısız: ' + e.message, 'error');
+        }
+    }
+
+    function triggerCo2Animation(amount) {
+        const card = document.getElementById('kpiCo2ReductionCard');
+        if (!card) return;
+
+        // 1. Pulse Efekti
+        card.classList.remove('pulse-effect');
+        void card.offsetWidth; // reflow
+        card.classList.add('pulse-effect');
+
+        // 2. Floating Text
+        const floatEl = document.createElement('div');
+        floatEl.className = 'floating-text';
+        floatEl.textContent = `+${amount.toFixed(1)} kg CO₂`;
+        card.appendChild(floatEl);
+
+        setTimeout(() => floatEl.remove(), 1500);
+
+        // 3. Counter Animation (KPI Value Update)
+        // Mevcut değeri alip target değere animasyonla cıkarabiliriz
+        // Ancak fetchDashboardSummary tekrar çalışıp değeri güncelleyecek.
+        // O yüzden görsel olarak "artış hissi" vermek floating text ile yeterli olabilir.
+        // Yine de manuel bir sayı artışı yapalım:
+        const valEl = document.getElementById('kpiCo2ReductionValue');
+        // Mevcut text'i number'a çevir (fmtKwh tersten) -> biraz zor
+        // Basitçe görsel vurgu yeterli.
+    }
+
+    async function dismissRec(id) {
+        try {
+            const res = await fetch(`/api/recommendations/${id}/dismiss`, { method: 'POST' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            showToast('Öneri reddedildi', 'warning');
+            fetchRecommendations();
+            fetchDashboardSummary();
+        } catch (e) {
+            showToast('İşlem başarısız: ' + e.message, 'error');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // CHART.JS KONFİGÜRASYONU
+    // ═══════════════════════════════════════════════════════════════════
+
+    const CHART_COLORS = {
+        actual: '#3b82f6',
+        prediction: '#00ff88',
+        confidence: 'rgba(0, 255, 136, 0.08)',
+        grid: 'rgba(255,255,255,0.04)',
+        tick: '#64748b',
+        green: '#00ff88',
+        blue: '#3b82f6',
+        purple: '#8b5cf6',
+        amber: '#f59e0b',
+        red: '#ef4444',
+    };
+
+    function initChart() {
+        const ctx = document.getElementById('energyChart').getContext('2d');
+        energyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'Gerçek Tüketim',
+                        data: [],
+                        borderColor: CHART_COLORS.actual,
+                        backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        fill: true,
+                        tension: 0.3,
+                        order: 2,
+                    },
+                    {
+                        label: 'AI Tahmini',
+                        data: [],
+                        borderColor: CHART_COLORS.prediction,
+                        borderWidth: 2,
+                        borderDash: [6, 4],
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        fill: false,
+                        tension: 0.3,
+                        order: 1,
+                    },
+                    {
+                        label: 'Güven Aralığı (Üst)',
+                        data: [],
+                        borderColor: 'transparent',
+                        backgroundColor: CHART_COLORS.confidence,
+                        pointRadius: 0,
+                        fill: '+1',
+                        tension: 0.3,
+                        order: 3,
+                    },
+                    {
+                        label: 'Güven Aralığı (Alt)',
+                        data: [],
+                        borderColor: 'transparent',
+                        backgroundColor: CHART_COLORS.confidence,
+                        pointRadius: 0,
+                        fill: '-1',
+                        tension: 0.3,
+                        order: 4,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: CHART_COLORS.tick,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 20,
+                            font: { family: 'Inter', size: 12 },
+                            filter: (item) => !item.text.includes('Güven'),
+                        },
+                    },
+                    tooltip: {
+                        backgroundColor: '#1a2332',
+                        titleColor: '#f1f5f9',
+                        bodyColor: '#94a3b8',
+                        borderColor: '#1e3a5f',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 8,
+                        titleFont: { family: 'Inter', weight: '600' },
+                        bodyFont: { family: 'Inter' },
+                        callbacks: {
+                            label: (ctx) => {
+                                if (ctx.dataset.label.includes('Güven')) return null;
+                                return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} kWh`;
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { unit: 'hour', displayFormats: { hour: 'dd MMM HH:mm' } },
+                        grid: { color: CHART_COLORS.grid },
+                        ticks: { color: CHART_COLORS.tick, font: { family: 'Inter', size: 11 }, maxTicksLimit: 12 },
+                    },
+                    y: {
+                        title: { display: true, text: 'kWh', color: CHART_COLORS.tick, font: { family: 'Inter' } },
+                        grid: { color: CHART_COLORS.grid },
+                        ticks: { color: CHART_COLORS.tick, font: { family: 'Inter', size: 11 } },
+                        beginAtZero: false,
+                    },
+                },
+            },
+        });
+    }
+
+    function updateChart(type, labels, values, upper, lower) {
+        if (!energyChart) return;
+
+        const tsData = labels.map((l, i) => ({ x: new Date(l), y: values[i] }));
+
+        if (type === 'actual') {
+            energyChart.data.datasets[0].data = tsData;
+        } else {
+            energyChart.data.datasets[1].data = tsData;
+
+            if (upper && lower) {
+                energyChart.data.datasets[2].data = labels.map((l, i) => ({ x: new Date(l), y: upper[i] }));
+                energyChart.data.datasets[3].data = labels.map((l, i) => ({ x: new Date(l), y: lower[i] }));
+            }
+        }
+
+        energyChart.update('none');
+    }
+
+    // ── Radial Savings Breakdown ─────────────────────────────────────
+    async function fetchSavingsBreakdown() {
+        try {
+            const res = await fetch('/api/recommendations?status=pending');
+            const d = await res.json();
+            const recs = d.recommendations || [];
+
+            const categories = {
+                'Tarife Yönetimi': 0,
+                'Doluluk Yönetimi': 0,
+                'Hava Durumu': 0,
+                'Anomali Müdahalesi': 0
+            };
+
+            let totalSavings = 0;
+
+            recs.forEach(r => {
+                const text = (r.recommendation_text || '').toLowerCase();
+                const kwh = r.estimated_saving_kwh || 0;
+                totalSavings += kwh;
+
+                if (text.match(/tarife|zaman|saat/)) categories['Tarife Yönetimi'] += kwh;
+                else if (text.match(/doluluk|hafta sonu|yoğunluk/)) categories['Doluluk Yönetimi'] += kwh;
+                else if (text.match(/sıcaklık|hava|soğutma|ısıtma/)) categories['Hava Durumu'] += kwh;
+                else if (text.match(/anomali|arıza|sapma/)) categories['Anomali Müdahalesi'] += kwh;
+                else categories['Tarife Yönetimi'] += kwh; // Fallback or add 'Diğer'
+            });
+
+            document.getElementById('savingsTotalVal').textContent = totalSavings.toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+
+            // Update Chart
+            updateSavingsDoughnut(categories);
+
+        } catch (e) {
+            console.error('Tasarruf verileri alınamadı:', e);
+        }
+    }
+
+    function updateSavingsDoughnut(categories) {
+        const labels = Object.keys(categories);
+        const data = Object.values(categories);
+        const bgColors = [CHART_COLORS.blue, CHART_COLORS.purple, CHART_COLORS.green, CHART_COLORS.red];
+
+        if (!savingsDoughnutChart) {
+            const ctx = document.getElementById('savingsDoughnutChart').getContext('2d');
+            savingsDoughnutChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: bgColors,
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: CHART_COLORS.tick, usePointStyle: true, padding: 20, font: { family: 'Inter', size: 11 } } },
+                        tooltip: {
+                            backgroundColor: '#1a2332',
+                            titleColor: '#f1f5f9',
+                            bodyColor: '#94a3b8',
+                            callbacks: {
+                                label: function (context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? (value / total * 100).toFixed(1) : 0;
+                                    return `${label}: ${Math.round(value)} kWh (%${pct})`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            savingsDoughnutChart.data.datasets[0].data = data;
+            savingsDoughnutChart.update();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // BAŞLATMA
+    // ═══════════════════════════════════════════════════════════════════
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        initChart();
+
+        await fetchBuildings();
+        fetchDashboardSummary();
+        fetchRealtimeEnergy();
+        fetchPredictions();
+        fetchRecommendations();
+        fetchAnomalies();
+        fetchSavingsBreakdown();
+
+        // ── WebSocket Başlatma ──────────────────────────────────────────
+        try {
+            socket = io();
+
+            socket.on('connect', () => {
+                console.log('[WebSocket] Client connected');
+            });
+
+            socket.on('new_data', (msg) => {
+                console.log('[WebSocket] new_data event received', msg);
+
+                // UI Güncelleme (grafiğe veri ekle / yenile)
+                const buildingId = document.getElementById('chartBuildingSelect').value;
+                const bId = buildingId ? parseInt(buildingId) : null;
+
+                if (msg.building_id && bId && msg.building_id !== bId) {
+                    return; // Sadece seçili bina için güncelle
+                }
+
+                // Grafiğe yeni nokta ekle (basitçe yeniden çekiyoruz, daha optimize olabilir)
+                fetchRealtimeEnergy(bId);
+                fetchDashboardSummary(); // KPI güncelle
+                fetchSavingsBreakdown(); // Gerekirse
+            });
+
+        } catch (e) {
+            console.error('Socket.IO hatası:', e);
+        }
+    });
+</script>
+
+
+<!-- Dashboard-spesifik stiller -->
+<style>
+    /* ── Grafik kontrolleri ────────────────────────────────── */
+    .chart-controls {
+        display: flex;
+        gap: 8px;
+    }
+
+    .chart-building-select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        border-radius: var(--radius-sm);
+        padding: 4px 12px;
+        font-size: 0.82rem;
+        font-family: 'Inter', sans-serif;
+        min-width: 180px;
+    }
+
+    .chart-building-select:focus {
+        border-color: var(--accent-green);
+        box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.15);
+        outline: none;
+    }
+
+    /* ── KPI alt satır ─────────────────────────────────────── */
+    .kpi-sub {
+        margin-top: 6px;
+        font-size: 0.78rem;
+    }
+
+    /* ── Öneri compact rows ─────────────────────────────────── */
+    .rec-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-subtle);
+        background: rgba(255, 255, 255, 0.01);
+        margin-bottom: 6px;
+        transition: all var(--transition);
+    }
+
+    .rec-row:hover {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: var(--border-color);
+    }
+
+    .badge-priority-fixed {
+        display: inline-block;
+        width: 58px;
+        text-align: center;
+        padding: 3px 0;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        flex-shrink: 0;
+    }
+
+    .badge-priority-fixed.high {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--accent-red);
+    }
+
+    .badge-priority-fixed.medium {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--accent-amber);
+    }
+
+    .badge-priority-fixed.low {
+        background: rgba(59, 130, 246, 0.15);
+        color: var(--accent-blue);
+    }
+
+    .rec-row-body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .rec-row-text {
+        font-size: 0.82rem;
+        color: var(--text-primary);
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .rec-row-saving {
+        font-size: 0.78rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .rec-row-actions {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .rec-row-actions .btn {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+    }
+
+    /* Pagination bar */
+    .rec-pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border-subtle);
+    }
+
+    /* ── Alert detay ───────────────────────────────────────── */
+    .alert-body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .alert-title {
+        font-weight: 600;
+        font-size: 0.88rem;
+        margin-bottom: 2px;
+    }
+
+    .alert-detail {
+        font-size: 0.78rem;
+        line-height: 1.4;
+    }
+
+    .alert-zscore {
+        font-size: 0.78rem;
+        margin-top: 4px;
+    }
+
+    /* ── Boş durum ─────────────────────────────────────────── */
+    .empty-state {
+        text-align: center;
+        padding: 32px 16px;
+    }
+
+    /* ── Responsive ────────────────────────────────────────── */
+    @media (max-width: 767.98px) {
+        .rec-card {
+            flex-direction: column;
+        }
+
+        .rec-card-actions {
+            flex-direction: row;
+        }
+
+        .chart-wrapper {
+            height: 260px !important;
+        }
+    }
+
+    /* ── CO₂ Animation Effects ────────────────────────────── */
+    @keyframes pulse-green {
+        0% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            background-color: rgba(16, 185, 129, 0.1);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            background-color: transparent;
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        }
+    }
+
+    @keyframes float-up {
+        0% {
+            opacity: 1;
+            transform: translateY(0) translateX(-50%);
+        }
+
+        100% {
+            opacity: 0;
+            transform: translateY(-40px) translateX(-50%);
+        }
+    }
+
+    .pulse-effect {
+        animation: pulse-green 1.5s ease-out;
+        border-color: #10b981 !important;
+    }
+
+    .floating-text {
+        position: absolute;
+        left: 50%;
+        top: -10px;
+        transform: translateX(-50%);
+        color: #10b981;
+        font-weight: bold;
+        font-size: 1.1rem;
+        pointer-events: none;
+        animation: float-up 1.5s ease-out forwards;
+        z-index: 100;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+</style>
+{% endblock %}

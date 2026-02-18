@@ -1,0 +1,989 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+
+{% block content %}
+
+<!-- ================================================================ -->
+<!-- BİNA SEÇİCİ + KPI KARTLARI                                       -->
+<!-- ================================================================ -->
+<div class="row row-cols-1 row-cols-md-3 row-cols-xl-5 g-3 mb-4 align-items-stretch">
+
+    <!-- Bina seçici -->
+    <div class="col">
+        <div class="card-dark animate-in h-100 d-flex flex-column justify-content-center" style="padding:16px;">
+            <label class="form-label text-muted-s"
+                style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.5px;">
+                <i class="bi bi-building me-1"></i> Bina
+            </label>
+            <select class="form-select chart-building-select" id="buildingSelect">
+                <option value="" disabled selected>Yükleniyor…</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Son 30 gün toplam -->
+    <div class="col">
+        <div class="card-dark kpi-card glow-green animate-in h-100">
+            <i class="bi bi-lightning-charge-fill kpi-icon"></i>
+            <div class="kpi-label">30 Gün Toplam</div>
+            <div class="kpi-value text-accent" id="kpiTotal30">
+                <div class="skeleton" style="width:100px;height:26px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s">kWh</div>
+        </div>
+    </div>
+
+    <!-- Ortalama günlük -->
+    <div class="col">
+        <div class="card-dark kpi-card glow-blue animate-in h-100">
+            <i class="bi bi-calendar-day kpi-icon"></i>
+            <div class="kpi-label">Ort. Günlük</div>
+            <div class="kpi-value text-blue" id="kpiDailyAvg">
+                <div class="skeleton" style="width:90px;height:26px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s">kWh / gün</div>
+        </div>
+    </div>
+
+    <!-- Pik saat -->
+    <div class="col">
+        <div class="card-dark kpi-card glow-amber animate-in h-100">
+            <i class="bi bi-clock-history kpi-icon"></i>
+            <div class="kpi-label">Pik Tüketim Saati</div>
+            <div class="kpi-value text-amber" id="kpiPeakHour">
+                <div class="skeleton" style="width:70px;height:26px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s" id="kpiPeakHourSub">en yüksek saat</div>
+        </div>
+    </div>
+
+    <!-- En verimli gün -->
+    <div class="col">
+        <div class="card-dark kpi-card glow-purple animate-in h-100">
+            <i class="bi bi-trophy kpi-icon"></i>
+            <div class="kpi-label">En Verimli Gün</div>
+            <div class="kpi-value" style="color:var(--accent-purple);font-size:1.3rem" id="kpiEfficientDay">
+                <div class="skeleton" style="width:100px;height:26px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s" id="kpiEfficientDaySub">en düşük tüketim</div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- TREND + SAATLIK ORTALAMA                                          -->
+<!-- ================================================================ -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-graph-up me-2 text-accent"></i>
+                    30 Günlük Tüketim Trendi
+                </h3>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:320px;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-bar-chart-steps me-2 text-blue"></i>
+                    Saatlik Ortalama
+                </h3>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:320px;">
+                <canvas id="hourlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SAATLİK HEATMAP                                                   -->
+<!-- ================================================================ -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-grid-3x3-gap-fill me-2 text-accent"></i>
+                    30 Gün Saatlik Enerji Yoğunluk Haritası
+                </h3>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:400px;">
+                <canvas id="heatmapChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- ENERJİ AKIŞ DİYAGRAMI (SANKEY-LIKE)                               -->
+<!-- ================================================================ -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-diagram-3-fill me-2 text-primary"></i>
+                    Kampüs Enerji Akış Diyagramı
+                </h3>
+            </div>
+            <div class="card-body p-4">
+                <div class="energy-flow-container">
+                    <!-- 1. Kaynak: Şebeke -->
+                    <div class="flow-node source" data-bs-toggle="tooltip" data-bs-placement="top"
+                        title="Kampüse elektrik sağlayan ana enerji kaynağı (ulusal şebeke)">
+                        <div class="icon-box glow-blue"><i class="bi bi-lightning-charge-fill"></i></div>
+                        <div class="label">Şebeke</div>
+                        <div class="value" id="flowGrid">-- kWh</div>
+                    </div>
+
+                    <!-- Ok 1 -->
+                    <div class="flow-arrow-container">
+                        <div class="flow-line"></div>
+                        <div class="flow-arrow-head"></div>
+                        <div class="flow-anim"></div>
+                    </div>
+
+                    <!-- 2. Dağıtım: Kampüs -->
+                    <div class="flow-node center" data-bs-toggle="tooltip" data-bs-placement="top"
+                        title="Tüm binalara dağıtılan toplam enerji miktarı">
+                        <div class="icon-box glow-purple"><i class="bi bi-buildings-fill"></i></div>
+                        <div class="label">Kampüs</div>
+                        <div class="value" id="flowCampus">-- kWh</div>
+                    </div>
+
+                    <!-- Oklar 2 (Dağılım) -->
+                    <div class="flow-branch-container">
+                        <svg width="100" height="120" style="overflow:visible">
+                            <!-- Top Path (HVAC) -->
+                            <path d="M0,60 C40,60 40,10 80,10" fill="none" class="flow-path" stroke="#ef4444"></path>
+                            <!-- Mid Path (Lighting) -->
+                            <path d="M0,60 L80,60" fill="none" class="flow-path" stroke="#f59e0b"></path>
+                            <!-- Bot Path (Other) -->
+                            <path d="M0,60 C40,60 40,110 80,110" fill="none" class="flow-path" stroke="#3b82f6"></path>
+                        </svg>
+                    </div>
+
+                    <!-- 3. Tüketim Kategorileri -->
+                    <div class="flow-destinations">
+                        <!-- HVAC -->
+                        <div class="flow-node dest" data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Isıtma, soğutma ve havalandırma sistemlerinin enerji tüketimi">
+                            <div class="icon-box glow-red"><i class="bi bi-thermometer-sun"></i></div>
+                            <div class="label">HVAC (Isıtma/Soğutma)</div>
+                            <div class="value text-red" id="flowHVAC">--</div>
+                            <small class="text-muted-s" id="flowHVACPct">%--</small>
+                        </div>
+                        <!-- Lighting -->
+                        <div class="flow-node dest" data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="İç ve dış aydınlatma sistemlerinin tahmini enerji tüketimi">
+                            <div class="icon-box glow-amber"><i class="bi bi-lightbulb-fill"></i></div>
+                            <div class="label">Aydınlatma (Tahmini)</div>
+                            <div class="value text-amber" id="flowLighting">--</div>
+                            <small class="text-muted-s" id="flowLightingPct">%--</small>
+                        </div>
+                        <!-- Other -->
+                        <div class="flow-node dest" data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Priz, bilgisayar, sunucu gibi cihazların enerji tüketimi">
+                            <div class="icon-box glow-blue"><i class="bi bi-pc-display"></i></div>
+                            <div class="label">Diğer (Priz/Sunucu)</div>
+                            <div class="value text-blue" id="flowOther">--</div>
+                            <small class="text-muted-s" id="flowOtherPct">%--</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- KARBON TREND                                                      -->
+<!-- ================================================================ -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-cloud-haze2 me-2" style="color:#10b981"></i>
+                    30 Günlük Karbon Emisyon Trendi
+                </h3>
+                <span class="badge" style="background:#10b981;color:#000;font-size:.75rem"
+                    id="carbonTotalBadge">--</span>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:280px;">
+                <canvas id="carbonChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- SCATTER + PIE                                                     -->
+<!-- ================================================================ -->
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-diagram-3 me-2 text-amber"></i>
+                    Sıcaklık vs Tüketim Korelasyonu
+                </h3>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:340px;">
+                <canvas id="scatterChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-pie-chart-fill me-2" style="color:var(--accent-purple)"></i>
+                    Tasarruf Potansiyeli Dağılımı
+                </h3>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:340px;">
+                <canvas id="savingsPieChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script <script
+    src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
+
+<script>
+    // ═══════════════════════════════════════════════════════════════════
+    // ANALYTICS PAGE
+    // ═══════════════════════════════════════════════════════════════════
+
+    let trendChart = null, hourlyChart = null, scatterChart = null, savingsPieChart = null, carbonChart = null, heatmapChart = null;
+    let allBuildings = [];
+
+    const C = {
+        green: '#00ff88', blue: '#3b82f6', purple: '#8b5cf6',
+        amber: '#f59e0b', red: '#ef4444', cyan: '#06b6d4',
+        grid: 'rgba(255,255,255,0.04)', tick: '#64748b',
+    };
+    const chartFont = { family: 'Inter' };
+
+    function fmtKwh(n) { return n != null ? n.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) : '--'; }
+
+    // ── Bina listesi ─────────────────────────────────────────────────
+    async function loadBuildings() {
+        try {
+            const res = await fetch('/api/buildings');
+            const d = await res.json();
+            allBuildings = d.buildings || [];
+            const sel = document.getElementById('buildingSelect');
+            sel.innerHTML = '';
+            allBuildings.forEach((b, i) => {
+                const opt = document.createElement('option');
+                opt.value = b.id; opt.textContent = b.name;
+                if (i === 0) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            sel.addEventListener('change', () => refreshAll(parseInt(sel.value)));
+            if (allBuildings.length) refreshAll(allBuildings[0].id);
+        } catch (e) { showToast('Bina listesi yüklenemedi', 'error'); }
+    }
+
+    function refreshAll(bid) {
+        fetchEnergyHistory(bid);
+        fetchRecommendations(bid);
+    }
+
+    // ── Enerji geçmişi & KPI + grafikler ────────────────────────────
+    async function fetchEnergyHistory(bid) {
+        try {
+            const res = await fetch(`/api/energy/history?building_id=${bid}&days=30`);
+            const d = await res.json();
+            const readings = d.readings || [];
+
+            if (readings.length === 0) {
+                showToast('Bu bina için veri bulunamadı', 'warning');
+                return;
+            }
+
+            // ── KPI hesaplama ─────────────────────────────
+            const total = readings.reduce((s, r) => s + r.total_kwh, 0);
+            document.getElementById('kpiTotal30').textContent = fmtKwh(total);
+
+            // Günlük grupla
+            const dailyMap = {};
+            const hourlyMap = {};
+            const scatterData = [];
+
+            readings.forEach(r => {
+                const dt = new Date(r.timestamp);
+                const dayKey = dt.toISOString().slice(0, 10);
+                dailyMap[dayKey] = (dailyMap[dayKey] || 0) + r.total_kwh;
+
+                const h = dt.getHours();
+                if (!hourlyMap[h]) hourlyMap[h] = { sum: 0, count: 0 };
+                hourlyMap[h].sum += r.total_kwh;
+                hourlyMap[h].count++;
+
+                if (r.temperature != null) {
+                    scatterData.push({ x: r.temperature, y: r.total_kwh });
+                }
+            });
+
+            const days = Object.keys(dailyMap).sort();
+            const dailyVals = days.map(k => dailyMap[k]);
+            const avgDaily = total / (days.length || 1);
+            document.getElementById('kpiDailyAvg').textContent = fmtKwh(avgDaily);
+
+            // Pik saat
+            let peakHour = 0, peakVal = 0;
+            for (let h = 0; h < 24; h++) {
+                if (hourlyMap[h] && hourlyMap[h].sum / hourlyMap[h].count > peakVal) {
+                    peakVal = hourlyMap[h].sum / hourlyMap[h].count;
+                    peakHour = h;
+                }
+            }
+            document.getElementById('kpiPeakHour').textContent =
+                `${String(peakHour).padStart(2, '0')}:00`;
+            document.getElementById('kpiPeakHourSub').textContent =
+                `ort. ${fmtKwh(peakVal)} kWh`;
+
+            // En verimli gün
+            let minDay = days[0], minVal = dailyVals[0];
+            dailyVals.forEach((v, i) => { if (v < minVal) { minVal = v; minDay = days[i]; } });
+            const minDate = new Date(minDay);
+            document.getElementById('kpiEfficientDay').textContent =
+                minDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' });
+            document.getElementById('kpiEfficientDaySub').textContent =
+                `${fmtKwh(minVal)} kWh`;
+
+            // ── Grafikler ─────────────────────────────────
+            updateTrendChart(days, dailyVals);
+            updateHourlyChart(hourlyMap);
+            updateScatterChart(scatterData);
+            updateCarbonChart(days, dailyVals);
+            updateHeatmapChart(days, hourlyMap, readings);
+            updateEnergyFlow(readings);
+
+        } catch (e) {
+            console.error(e);
+            showToast('Enerji verileri yüklenemedi', 'error');
+        }
+    }
+
+    // ── Önerilerden tasarruf dağılımı ────────────────────────────────
+    async function fetchRecommendations(bid) {
+        try {
+            const res = await fetch(`/api/recommendations?building_id=${bid}&status=pending`);
+            const d = await res.json();
+            const recs = d.recommendations || [];
+
+            const categories = {};
+            recs.forEach(r => {
+                const text = r.recommendation_text || '';
+                let cat = 'Diğer';
+                if (text.includes('gece tarife') || text.includes('kaydır')) cat = 'Tarife Optimizasyonu';
+                else if (text.includes('doluluk') || text.includes('HVAC')) cat = 'Doluluk Bazlı';
+                else if (text.includes('sıcaklık') || text.includes('soğutma') || text.includes('ısıtma')) cat = 'Hava Durumu';
+                else if (text.includes('anomal') || text.includes('anormal')) cat = 'Anomali Müdahale';
+
+                categories[cat] = (categories[cat] || 0) + (r.estimated_saving_kwh || 0);
+            });
+
+            updatePieChart(categories);
+        } catch (e) {
+            showToast('Öneri verileri yüklenemedi', 'error');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // CHART INIT & UPDATE
+    // ═══════════════════════════════════════════════════════════════════
+
+    const tooltipStyle = {
+        backgroundColor: '#1a2332', titleColor: '#f1f5f9', bodyColor: '#94a3b8',
+        borderColor: '#1e3a5f', borderWidth: 1, padding: 12, cornerRadius: 8,
+        titleFont: { ...chartFont, weight: '600' }, bodyFont: chartFont,
+    };
+
+    function initCharts() {
+        // TREND
+        trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Günlük Tüketim',
+                    data: [], borderColor: C.green, backgroundColor: 'rgba(0,255,136,0.06)',
+                    borderWidth: 2, pointRadius: 3, pointBackgroundColor: C.green,
+                    pointHoverRadius: 5, fill: true, tension: 0.35,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: C.tick, usePointStyle: true, font: { ...chartFont, size: 11 } } },
+                    tooltip: { ...tooltipStyle, callbacks: { label: c => `${c.parsed.y.toFixed(1)} kWh` } },
+                },
+                scales: {
+                    x: {
+                        type: 'time', time: { unit: 'day', displayFormats: { day: 'dd MMM' } },
+                        grid: { color: C.grid }, ticks: { color: C.tick, font: { ...chartFont, size: 10 }, maxTicksLimit: 10 }
+                    },
+                    y: {
+                        title: { display: true, text: 'kWh', color: C.tick, font: chartFont },
+                        grid: { color: C.grid }, ticks: { color: C.tick, font: { ...chartFont, size: 11 } }, beginAtZero: false
+                    },
+                },
+            },
+        });
+
+        // HOURLY
+        hourlyChart = new Chart(document.getElementById('hourlyChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: [], datasets: [{
+                    label: 'Ort. kWh',
+                    data: [], backgroundColor: [], borderRadius: 4, borderSkipped: false,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { ...tooltipStyle, callbacks: { label: c => `${c.parsed.y.toFixed(1)} kWh` } },
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: C.tick, font: { ...chartFont, size: 10 } } },
+                    y: {
+                        title: { display: true, text: 'kWh', color: C.tick, font: chartFont },
+                        grid: { color: C.grid }, ticks: { color: C.tick, font: { ...chartFont, size: 11 } }, beginAtZero: false
+                    },
+                },
+            },
+        });
+
+        // SCATTER
+        scatterChart = new Chart(document.getElementById('scatterChart').getContext('2d'), {
+            type: 'scatter',
+            data: {
+                datasets: [
+                    {
+                        label: 'Tüketim vs Sıcaklık',
+                        data: [], backgroundColor: 'rgba(0,255,136,0.35)',
+                        borderColor: C.green, pointRadius: 3, pointHoverRadius: 5,
+                    },
+                    {
+                        label: 'Trend Çizgisi',
+                        type: 'line', data: [], borderColor: C.amber,
+                        borderWidth: 2, borderDash: [6, 3], pointRadius: 0,
+                        fill: false, tension: 0,
+                    },
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: C.tick, usePointStyle: true, font: { ...chartFont, size: 11 } } },
+                    tooltip: {
+                        ...tooltipStyle, callbacks: {
+                            label: c => c.datasetIndex === 0
+                                ? `Sıcaklık: ${c.parsed.x.toFixed(1)}°C · Tüketim: ${c.parsed.y.toFixed(1)} kWh`
+                                : null,
+                        }
+                    },
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Sıcaklık (°C)', color: C.tick, font: chartFont },
+                        grid: { color: C.grid }, ticks: { color: C.tick, font: { ...chartFont, size: 11 } }
+                    },
+                    y: {
+                        title: { display: true, text: 'kWh', color: C.tick, font: chartFont },
+                        grid: { color: C.grid }, ticks: { color: C.tick, font: { ...chartFont, size: 11 } }
+                    },
+                },
+            },
+        });
+
+        // PIE
+        savingsPieChart = new Chart(document.getElementById('savingsPieChart').getContext('2d'), {
+            type: 'doughnut',
+            data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 0, hoverOffset: 8 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                cutout: '55%',
+                plugins: {
+                    legend: {
+                        position: 'bottom', labels: {
+                            color: C.tick, usePointStyle: true, pointStyle: 'circle',
+                            padding: 14, font: { ...chartFont, size: 11 }
+                        }
+                    },
+                    tooltip: { ...tooltipStyle, callbacks: { label: c => `${c.label}: ${c.parsed.toFixed(1)} kWh` } },
+                },
+            },
+        });
+
+        // CARBON TREND
+        carbonChart = new Chart(document.getElementById('carbonChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Günlük CO₂ Emisyonu',
+                    data: [], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)',
+                    borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#10b981',
+                    pointHoverRadius: 5, fill: true, tension: 0.35,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: C.tick, usePointStyle: true, font: { ...chartFont, size: 11 } } },
+                    tooltip: { ...tooltipStyle, callbacks: { label: c => `${c.parsed.y.toFixed(1)} kg CO\u2082` } },
+                },
+                scales: {
+                    x: {
+                        type: 'time', time: { unit: 'day', displayFormats: { day: 'dd MMM' } },
+                        grid: { color: C.grid }, ticks: { color: C.tick, font: { ...chartFont, size: 10 }, maxTicksLimit: 10 }
+                    },
+                    y: {
+                        title: { display: true, text: 'kg CO\u2082', color: C.tick, font: chartFont },
+                        grid: { color: C.grid }, ticks: { color: C.tick, font: { ...chartFont, size: 11 } }, beginAtZero: false
+                    },
+                },
+            },
+        });
+    }
+
+    // ── Update fonksiyonları ─────────────────────────────────────────
+
+    function updateTrendChart(days, vals) {
+        trendChart.data.datasets[0].data = days.map((d, i) => ({ x: new Date(d), y: vals[i] }));
+        trendChart.update('none');
+    }
+
+    function updateHourlyChart(hourlyMap) {
+        const labels = [], values = [], colors = [];
+        for (let h = 0; h < 24; h++) {
+            labels.push(`${String(h).padStart(2, '0')}:00`);
+            const avg = hourlyMap[h] ? hourlyMap[h].sum / hourlyMap[h].count : 0;
+            values.push(avg);
+        }
+        const max = Math.max(...values);
+        values.forEach(v => {
+            const r = v / max;
+            colors.push(r > 0.85 ? C.red : r > 0.6 ? C.amber : r > 0.35 ? C.blue : C.green);
+        });
+
+        hourlyChart.data.labels = labels;
+        hourlyChart.data.datasets[0].data = values;
+        hourlyChart.data.datasets[0].backgroundColor = colors;
+        hourlyChart.update('none');
+    }
+
+    function updateScatterChart(data) {
+        scatterChart.data.datasets[0].data = data;
+
+        // Basit lineer regresyon
+        if (data.length > 2) {
+            const n = data.length;
+            let sx = 0, sy = 0, sxy = 0, sxx = 0;
+            data.forEach(p => { sx += p.x; sy += p.y; sxy += p.x * p.y; sxx += p.x * p.x; });
+            const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+            const intercept = (sy - slope * sx) / n;
+
+            const xMin = Math.min(...data.map(p => p.x));
+            const xMax = Math.max(...data.map(p => p.x));
+            scatterChart.data.datasets[1].data = [
+                { x: xMin, y: slope * xMin + intercept },
+                { x: xMax, y: slope * xMax + intercept },
+            ];
+        }
+        scatterChart.update('none');
+    }
+
+    function updatePieChart(categories) {
+        const pieColors = [C.green, C.blue, C.amber, C.purple, C.red, C.cyan];
+        const labels = Object.keys(categories);
+        const values = Object.values(categories);
+
+        savingsPieChart.data.labels = labels;
+        savingsPieChart.data.datasets[0].data = values;
+        savingsPieChart.data.datasets[0].backgroundColor = labels.map((_, i) => pieColors[i % pieColors.length]);
+        savingsPieChart.update('none');
+    }
+
+    function updateCarbonChart(days, dailyVals) {
+        const CO2_FACTOR = 0.43;
+        const co2Data = days.map((d, i) => ({ x: new Date(d), y: dailyVals[i] * CO2_FACTOR }));
+        carbonChart.data.datasets[0].data = co2Data;
+        carbonChart.update('none');
+
+        const totalCO2 = dailyVals.reduce((s, v) => s + v * CO2_FACTOR, 0);
+        document.getElementById('carbonTotalBadge').textContent =
+            `Toplam: ${totalCO2.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} kg CO₂`;
+    }
+
+    function updateHeatmapChart(days, hourlyMap, readings) {
+        // Matrix data preparation: { x: hour, y: date_str, v: value }
+        const matrixData = [];
+        const dateSet = new Set(days);
+
+        // Group by Date and Hour
+        const grouped = {};
+        readings.forEach(r => {
+            const dt = new Date(r.timestamp);
+            const dateKey = dt.toISOString().slice(0, 10);
+            const hour = dt.getHours();
+            const key = `${dateKey}_${hour}`;
+            if (!grouped[key]) grouped[key] = { sum: 0, count: 0 };
+            grouped[key].sum += r.total_kwh;
+            grouped[key].count++;
+        });
+
+        days.forEach(dayStr => {
+            for (let h = 0; h < 24; h++) {
+                const key = `${dayStr}_${h}`;
+                const val = grouped[key] ? grouped[key].sum : 0; // Hourly total
+                // If user meant average of readings within that hour? Usually total_kwh is accumulation.
+                // Assuming total_kwh is per reading (e.g. 5 minutely), sum gives hourly consumption.
+                matrixData.push({ x: h, y: dayStr, v: val });
+            }
+        });
+
+        // Determine min/max for color scale
+        const vals = matrixData.map(d => d.v);
+        const min = Math.min(...vals);
+        const max = Math.max(...vals);
+
+        // Init Chart if null
+        if (!heatmapChart) {
+            heatmapChart = new Chart(document.getElementById('heatmapChart').getContext('2d'), {
+                type: 'matrix',
+                data: {
+                    datasets: [{
+                        label: 'Saatlik kWh',
+                        data: matrixData,
+                        backgroundColor(c) {
+                            const val = c.raw.v;
+                            const t = (val - min) / (max - min || 1); // 0..1
+
+                            // Vibrant 6-stop gradient: indigo → electric blue → cyan → lime → orange → hot pink
+                            const stops = [
+                                { t: 0.00, r: 26, g: 26, b: 46 }, // deep indigo
+                                { t: 0.20, r: 0, g: 119, b: 255 }, // electric blue
+                                { t: 0.40, r: 0, g: 212, b: 255 }, // cyan
+                                { t: 0.60, r: 0, g: 255, b: 136 }, // lime green
+                                { t: 0.80, r: 255, g: 136, b: 0 }, // vivid orange
+                                { t: 1.00, r: 255, g: 45, b: 85 }  // hot pink
+                            ];
+
+                            // Interpolate between surrounding stops
+                            let lo = stops[0], hi = stops[stops.length - 1];
+                            for (let i = 0; i < stops.length - 1; i++) {
+                                if (t >= stops[i].t && t <= stops[i + 1].t) {
+                                    lo = stops[i]; hi = stops[i + 1]; break;
+                                }
+                            }
+                            const f = (t - lo.t) / (hi.t - lo.t || 1);
+                            const r = Math.round(lo.r + f * (hi.r - lo.r));
+                            const g = Math.round(lo.g + f * (hi.g - lo.g));
+                            const b = Math.round(lo.b + f * (hi.b - lo.b));
+
+                            return `rgb(${r}, ${g}, ${b})`;
+                        },
+                        borderWidth: 1,
+                        borderColor: 'rgba(0,0,0,0.15)',
+                        width: ({ chart }) => (chart.chartArea || {}).width / 24 - 1,
+                        height: ({ chart }) => (chart.chartArea || {}).height / days.length - 1,
+                        borderRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: () => null,
+                                label(c) {
+                                    const v = c.raw;
+                                    return `${v.y} ${String(v.x).padStart(2, '0')}:00 : ${v.v.toFixed(1)} kWh`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: 0, max: 23,
+                            offset: true,
+                            position: 'top',
+                            ticks: { stepSize: 1, callback: v => `${v}:00`, color: C.tick, font: { ...chartFont, size: 9 } },
+                            grid: { display: false }
+                        },
+                        y: {
+                            type: 'category',
+                            labels: days,
+                            offset: true,
+                            reverse: true,
+                            ticks: { autoSkip: true, maxTicksLimit: 15, color: C.tick, font: { ...chartFont, size: 10 } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        } else {
+            heatmapChart.data.datasets[0].data = matrixData;
+            heatmapChart.data.datasets[0].height = ({ chart }) => (chart.chartArea || {}).height / days.length - 1;
+            heatmapChart.options.scales.y.labels = days;
+            // Update color scale logic if needed based on new min/max
+            heatmapChart.update('none');
+        }
+    }
+
+    function updateEnergyFlow(readings) {
+        // Calculate Totals
+        let totalVal = 0;
+        let heating = 0;
+        let cooling = 0;
+        let electricity = 0;
+
+        readings.forEach(r => {
+            totalVal += r.total_kwh;
+            heating += r.heating_kwh;
+            cooling += r.cooling_kwh;
+            electricity += r.electricity_kwh;
+        });
+
+        // HVAC
+        const hvacVal = heating + cooling;
+        // Lighting = ~30% of electricity (Assumption)
+        const lightingVal = electricity * 0.30;
+        // Other = ~70% of electricity
+        const otherVal = electricity * 0.70;
+
+        // Update DOM
+        const fmt = (n) => n.toLocaleString('tr-TR', { maximumFractionDigits: 0 }) + ' kWh';
+        const pct = (n) => '%' + (totalVal > 0 ? (n / totalVal * 100).toFixed(1) : '0.0');
+
+        document.getElementById('flowGrid').textContent = fmt(totalVal);
+        document.getElementById('flowCampus').textContent = fmt(totalVal);
+
+        document.getElementById('flowHVAC').textContent = fmt(hvacVal);
+        document.getElementById('flowHVACPct').textContent = pct(hvacVal);
+
+        document.getElementById('flowLighting').textContent = fmt(lightingVal);
+        document.getElementById('flowLightingPct').textContent = pct(lightingVal);
+
+        document.getElementById('flowOther').textContent = fmt(otherVal);
+        document.getElementById('flowOtherPct').textContent = pct(otherVal);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // BAŞLATMA
+    // ═══════════════════════════════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+        initCharts();
+        loadBuildings();
+    });
+</script>
+
+<style>
+    .chart-building-select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        border-radius: var(--radius-sm);
+        padding: 8px 14px;
+        font-size: .9rem;
+        font-family: 'Inter', sans-serif;
+        width: 100%;
+    }
+
+    .chart-building-select:focus {
+        border-color: var(--accent-green);
+        box-shadow: 0 0 0 2px rgba(0, 255, 136, .15);
+        outline: none;
+    }
+
+    .form-label {
+        margin-bottom: 6px;
+    }
+
+    /* Energy Flow Styles */
+    .energy-flow-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 0;
+        position: relative;
+        overflow-x: auto;
+    }
+
+    .flow-node {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 16px;
+        min-width: 120px;
+        text-align: center;
+        transition: transform 0.2s;
+        z-index: 2;
+    }
+
+    .flow-node:hover {
+        transform: translateY(-2px);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .flow-node.source {
+        border-color: var(--accent-blue);
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.1);
+    }
+
+    .flow-node.center {
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 15px rgba(139, 92, 246, 0.1);
+    }
+
+    .flow-destinations {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .flow-node.dest {
+        min-width: 160px;
+        padding: 10px 16px;
+        flex-direction: row;
+        gap: 12px;
+        justify-content: flex-start;
+        text-align: left;
+    }
+
+    .flow-node.dest .icon-box {
+        margin-bottom: 0;
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+
+    .flow-node.dest .label {
+        font-size: 0.8rem;
+        margin-top: 0;
+        flex: 1;
+    }
+
+    .flow-node.dest .value {
+        font-size: 0.9rem;
+        margin-top: 0;
+        /* font-weight:700; */
+    }
+
+    .icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 8px;
+        color: #fff;
+    }
+
+    .label {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-top: 4px;
+        font-weight: 500;
+    }
+
+    .value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-top: 2px;
+    }
+
+    /* Arrows */
+    .flow-arrow-container {
+        flex: 1;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 0 20px;
+        position: relative;
+        min-width: 60px;
+    }
+
+    .flow-anim {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 30%;
+        background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+        animation: flowMove 2s infinite linear;
+    }
+
+    @keyframes flowMove {
+        0% {
+            left: -30%;
+        }
+
+        100% {
+            left: 100%;
+        }
+    }
+
+    .flow-branch-container {
+        width: 100px;
+        margin: 0 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .flow-path {
+        stroke-width: 2;
+        stroke-dasharray: 10;
+        animation: dash 30s linear infinite;
+        opacity: 0.6;
+    }
+
+    @keyframes dash {
+        to {
+            stroke-dashoffset: -1000;
+        }
+    }
+
+    @media(max-width:767.98px) {
+        .chart-wrapper {
+            height: 240px !important;
+        }
+    }
+</style>
+{% endblock %}

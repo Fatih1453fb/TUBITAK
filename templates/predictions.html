@@ -1,0 +1,964 @@
+{% extends "base.html" %}
+
+{% block title %}AI Tahminler{% endblock %}
+{% block page_title %}AI Tahminler{% endblock %}
+
+{% block content %}
+
+<!-- ================================================================ -->
+<!-- ÜST: BİNA SEÇİCİ + MODEL METRİKLERİ                             -->
+<!-- ================================================================ -->
+<div class="row g-3 mb-4 align-items-stretch">
+    <!-- Bina seçici -->
+    <div class="col-lg-3 col-md-4">
+        <div class="card-dark animate-in h-100 d-flex flex-column justify-content-center" style="padding:16px;">
+            <label class="form-label text-muted-s"
+                style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;">
+                <i class="bi bi-building me-1"></i> Bina Seçin
+            </label>
+            <select class="form-select chart-building-select" id="buildingSelect">
+                <option value="" disabled selected>Yükleniyor…</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- R² -->
+    <div class="col-lg-3 col-md-4">
+        <div class="card-dark kpi-card glow-purple animate-in h-100" id="metric-r2">
+            <i class="bi bi-bullseye kpi-icon"></i>
+            <div class="kpi-label">R² Skoru</div>
+            <div class="kpi-value" style="color:var(--accent-purple)" id="metricR2">
+                <div class="skeleton" style="width:90px;height:28px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s">Belirginlik katsayısı</div>
+        </div>
+    </div>
+
+    <!-- MAE -->
+    <div class="col-lg-3 col-md-4">
+        <div class="card-dark kpi-card glow-blue animate-in h-100" id="metric-mae">
+            <i class="bi bi-arrows-angle-contract kpi-icon"></i>
+            <div class="kpi-label">MAE</div>
+            <div class="kpi-value text-blue" id="metricMAE">
+                <div class="skeleton" style="width:90px;height:28px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s">Ort. mutlak hata (kWh)</div>
+        </div>
+    </div>
+
+    <!-- RMSE -->
+    <div class="col-lg-3 col-md-4">
+        <div class="card-dark kpi-card glow-amber animate-in h-100" id="metric-rmse">
+            <i class="bi bi-bar-chart kpi-icon"></i>
+            <div class="kpi-label">RMSE</div>
+            <div class="kpi-value text-amber" id="metricRMSE">
+                <div class="skeleton" style="width:90px;height:28px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s">Kök ort. kare hata (kWh)</div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- ORTA: 7 GÜNLÜK TAHMİN GRAFİĞİ + GÜNLÜK BAR                     -->
+<!-- ================================================================ -->
+<div class="row g-3 mb-4">
+    <!-- 7-gün line chart -->
+    <div class="col-lg-8">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-graph-up-arrow me-2 text-accent"></i>
+                    7 Günlük Enerji Tahmini
+                </h3>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:340px;">
+                <canvas id="forecast7dChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Günlük toplam bar chart -->
+    <div class="col-lg-4">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-bar-chart-fill me-2 text-blue"></i>
+                    Günlük Toplam
+                </h3>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:340px;">
+                <canvas id="dailyBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- TAHMİN HATASI ANALİZİ (YENİ)                                      -->
+<!-- ================================================================ -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-activity me-2" style="color:#f59e0b"></i>
+                    Tahmin Hatası Analizi (Son 24 Saat)
+                </h3>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:350px;">
+                <canvas id="errorChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- ALT: FEATURE IMPORTANCE + ANOMALİLER                              -->
+<!-- ================================================================ -->
+<div class="row g-3">
+    <!-- Feature Importance -->
+    <div class="col-lg-6">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-stars me-2 text-amber"></i>
+                    Feature Importance
+                </h3>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:360px;">
+                <canvas id="featureChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Son Anomaliler -->
+    <div class="col-lg-6">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-exclamation-triangle me-2 text-red"></i>
+                    Anomali Zaman Çizelgesi
+                </h3>
+                <span class="badge bg-dark border border-secondary" id="anomalyBadge">0</span>
+            </div>
+            <div class="timeline-container custom-scrollbar" style="max-height:360px;overflow-y:auto;padding:0 12px;">
+                <div id="anomalyTimeline" class="timeline">
+                    <!-- JS ile doldurulacak -->
+                    <div class="text-center text-muted-s py-4">
+                        <div class="skeleton" style="height:40px;margin-bottom:12px;"></div>
+                        <div class="skeleton" style="height:40px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- TAHMİN AÇIKLAMASI (XAI)                                            -->
+<!-- ================================================================ -->
+<div class="row g-3 mt-1 mb-4">
+    <div class="col-12">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-lightbulb me-2" style="color:#10b981"></i>
+                    Tahmin Açıklaması (Explainable AI)
+                </h3>
+                <span class="badge" style="background:rgba(16,185,129,.15);color:#10b981;font-size:.75rem">
+                    <i class="bi bi-diagram-3 me-1"></i>Grup Bazlı Katkı
+                </span>
+            </div>
+            <div class="xai-container" id="xaiContainer">
+                <div class="xai-row">
+                    <div class="xai-label"><i class="bi bi-people-fill xai-icon" style="color:#8b5cf6"></i> Doluluk
+                        Etkisi</div>
+                    <div class="xai-bar-track">
+                        <div class="xai-bar-fill" id="xaiOccupancy" style="--bar-color:#8b5cf6"></div>
+                    </div>
+                    <div class="xai-pct" id="xaiOccupancyPct">--</div>
+                </div>
+                <div class="xai-row">
+                    <div class="xai-label"><i class="bi bi-thermometer-half xai-icon" style="color:#ef4444"></i>
+                        Sıcaklık Etkisi</div>
+                    <div class="xai-bar-track">
+                        <div class="xai-bar-fill" id="xaiTemperature" style="--bar-color:#ef4444"></div>
+                    </div>
+                    <div class="xai-pct" id="xaiTemperaturePct">--</div>
+                </div>
+                <div class="xai-row">
+                    <div class="xai-label"><i class="bi bi-clock-history xai-icon" style="color:#3b82f6"></i> Geçmiş
+                        Veri (Lag)</div>
+                    <div class="xai-bar-track">
+                        <div class="xai-bar-fill" id="xaiLag" style="--bar-color:#3b82f6"></div>
+                    </div>
+                    <div class="xai-pct" id="xaiLagPct">--</div>
+                </div>
+                <div class="xai-row">
+                    <div class="xai-label"><i class="bi bi-three-dots xai-icon" style="color:#f59e0b"></i> Diğer
+                        Faktörler</div>
+                    <div class="xai-bar-track">
+                        <div class="xai-bar-fill" id="xaiOther" style="--bar-color:#f59e0b"></div>
+                    </div>
+                    <div class="xai-pct" id="xaiOtherPct">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script
+    src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<script>
+    // ═══════════════════════════════════════════════════════════════════
+    // PREDICTIONS PAGE — JS
+    // ═══════════════════════════════════════════════════════════════════
+
+    let forecast7dChart = null;
+    let dailyBarChart = null;
+    let featureChart = null;
+    let errorChart = null;
+    let allBuildings = [];
+
+    const C = {
+        green: '#00ff88',
+        blue: '#3b82f6',
+        purple: '#8b5cf6',
+        amber: '#f59e0b',
+        red: '#ef4444',
+        grid: 'rgba(255,255,255,0.04)',
+        tick: '#64748b',
+        ci: 'rgba(0,255,136,0.08)',
+    };
+
+    const chartFont = { family: 'Inter' };
+
+    // ── Yardımcılar ─────────────────────────────────────────────────
+    function fmtKwh(n) { return n != null ? n.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) : '--'; }
+
+    // ── Bina listesi ─────────────────────────────────────────────────
+    async function loadBuildings() {
+        try {
+            const res = await fetch('/api/buildings');
+            const d = await res.json();
+            allBuildings = d.buildings || [];
+
+            const sel = document.getElementById('buildingSelect');
+            sel.innerHTML = '';
+            allBuildings.forEach((b, i) => {
+                const opt = document.createElement('option');
+                opt.value = b.id;
+                opt.textContent = b.name;
+                if (i === 0) opt.selected = true;
+                sel.appendChild(opt);
+            });
+
+            sel.addEventListener('change', () => refreshAll(parseInt(sel.value)));
+            if (allBuildings.length) refreshAll(allBuildings[0].id);
+        } catch (e) {
+            showToast('Bina listesi yüklenemedi', 'error');
+        }
+    }
+
+    // ── Tüm veriyi yenile ───────────────────────────────────────────
+    function refreshAll(bid) {
+        fetchModelMetrics(bid);
+        fetchForecast7d(bid);
+        fetchFeatureImportance(bid);
+        fetchAnomalies(bid);
+        fetchExplainAI(bid);
+        fetchPredictionAnalysis(bid);
+    }
+
+    // ── 1) Model metrikleri ──────────────────────────────────────────
+    async function fetchModelMetrics(bid) {
+        try {
+            const res = await fetch(`/api/model/accuracy?building_id=${bid}`);
+            const d = await res.json();
+            const m = d.metrics || {};
+
+            document.getElementById('metricR2').textContent =
+                m.r2 != null ? (m.r2 * 100).toFixed(1) + '%' : '--';
+            document.getElementById('metricMAE').textContent =
+                m.mae != null ? m.mae.toFixed(2) : '--';
+            document.getElementById('metricRMSE').textContent =
+                m.rmse != null ? m.rmse.toFixed(2) : '--';
+
+            // R² renklendirme
+            const r2Card = document.getElementById('metric-r2');
+            r2Card.classList.remove('glow-green', 'glow-amber', 'glow-red', 'glow-purple');
+            if (m.r2 >= 0.85) r2Card.classList.add('glow-green');
+            else if (m.r2 >= 0.70) r2Card.classList.add('glow-purple');
+            else r2Card.classList.add('glow-red');
+        } catch (e) {
+            showToast('Model metrikleri yüklenemedi', 'error');
+        }
+    }
+
+    // ── 2) 7 günlük tahmin ──────────────────────────────────────────
+    async function fetchForecast7d(bid) {
+        try {
+            const res = await fetch(`/api/predictions/7d?building_id=${bid}`);
+            const d = await res.json();
+            const preds = d.predictions || [];
+
+            // API daily aggregates: {date, predicted_kwh_total}
+            const labels = preds.map(p => p.date);
+            const values = preds.map(p => p.predicted_kwh_total);
+            const upper = values.map(v => v * 1.10);
+            const lower = values.map(v => v * 0.90);
+
+            updateForecastChart(labels, values, upper, lower);
+            updateDailyBar(labels, values);
+        } catch (e) {
+            showToast('7-gün tahminleri yüklenemedi', 'error');
+        }
+    }
+
+    // ── 3) Feature importance ────────────────────────────────────────
+    async function fetchFeatureImportance(bid) {
+        try {
+            const res = await fetch(`/api/model/feature-importance?building_id=${bid}`);
+            const d = await res.json();
+            const feats = (d.features || []).slice(0, 12); // top 12
+
+            updateFeatureChart(feats);
+        } catch (e) {
+            showToast('Feature importance yüklenemedi', 'error');
+        }
+    }
+
+    // ── 4) Anomaliler tablosu ────────────────────────────────────────
+    // ── 4) Anomaliler Timeline ──────────────────────────────────────
+    async function fetchAnomalies(bid) {
+        try {
+            const res = await fetch(`/api/anomalies?building_id=${bid}`);
+            const d = await res.json();
+            const anomalies = d.anomalies || [];
+
+            // Sort Descending
+            anomalies.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            document.getElementById('anomalyBadge').textContent = anomalies.length;
+
+            const container = document.getElementById('anomalyTimeline');
+            if (anomalies.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted-s py-5">
+                        <i class="bi bi-shield-check text-accent" style="font-size:2rem;display:block;margin-bottom:10px;"></i>
+                        Son 30 günde anomali tespit edilmedi.
+                    </div>`;
+                return;
+            }
+
+            let html = '';
+            let lastDate = '';
+
+            anomalies.forEach(a => {
+                const dt = new Date(a.timestamp);
+                const dateHeader = dt.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+                const timeStr = dt.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+                // Group headers
+                if (dateHeader !== lastDate) {
+                    html += `<div class="timeline-header">${dateHeader}</div>`;
+                    lastDate = dateHeader;
+                }
+
+                const z = a.z_score || 0;
+                const isCritical = z > 2.5;
+                const colorClass = isCritical ? 'red' : 'amber';
+                const icon = isCritical ? 'bi-lightning-fill' : 'bi-exclamation-circle-fill';
+                const badgeColor = isCritical ? '#ef4444' : '#f59e0b';
+
+                html += `
+                <div class="timeline-item">
+                    <div class="timeline-marker" style="background:${badgeColor}">
+                       <i class="bi ${icon}"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="timeline-time">${timeStr}</span>
+                            <span class="badge" style="background:rgba(${isCritical ? '239,68,68' : '245,158,11'},0.15);color:${badgeColor}">
+                                Z: ${z.toFixed(1)}
+                            </span>
+                        </div>
+                        <div class="timeline-row">
+                            <span class="text-muted-s">Ölçülen:</span>
+                            <span class="fw-bold text-white">${fmtKwh(a.total_kwh)}</span>
+                        </div>
+                        <div class="timeline-row">
+                            <span class="text-muted-s">Beklenen:</span>
+                            <span class="fw-bold text-white">${fmtKwh(a.expected_kwh)}</span>
+                        </div>
+                        <div class="timeline-row mt-1">
+                             <div class="progress" style="height:4px;width:100%;background:rgba(255,255,255,0.1)">
+                                <div class="progress-bar bg-${colorClass}" style="width:${Math.min(a.deviation_percent, 100)}%"></div>
+                             </div>
+                             <span class="text-${colorClass} ms-2" style="font-size:0.75rem">%${a.deviation_percent.toFixed(0)} sapma</span>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+
+        } catch (e) {
+            console.error(e);
+            showToast('Anomali verileri yüklenemedi', 'error');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // CHART OLUŞTURMA & GÜNCELLEME
+    // ═══════════════════════════════════════════════════════════════════
+
+    function initCharts() {
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: C.tick, usePointStyle: true, pointStyle: 'circle', padding: 16, font: { ...chartFont, size: 11 } },
+                },
+                tooltip: {
+                    backgroundColor: '#1a2332', titleColor: '#f1f5f9', bodyColor: '#94a3b8',
+                    borderColor: '#1e3a5f', borderWidth: 1, padding: 12, cornerRadius: 8,
+                    titleFont: { ...chartFont, weight: '600' }, bodyFont: chartFont,
+                },
+            },
+        };
+
+        // 7-gün line chart
+        forecast7dChart = new Chart(document.getElementById('forecast7dChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: 'AI Tahmini',
+                        data: [],
+                        borderColor: C.green,
+                        backgroundColor: 'rgba(0,255,136,0.06)',
+                        borderWidth: 2.5,
+                        pointRadius: 4,
+                        pointBackgroundColor: C.green,
+                        pointHoverRadius: 6,
+                        fill: false,
+                        tension: 0.35,
+                        order: 1,
+                    },
+                    {
+                        label: 'Güven Aralığı (Üst)',
+                        data: [],
+                        borderColor: 'transparent',
+                        backgroundColor: C.ci,
+                        pointRadius: 0,
+                        fill: '+1',
+                        tension: 0.35,
+                        order: 2,
+                    },
+                    {
+                        label: 'Güven Aralığı (Alt)',
+                        data: [],
+                        borderColor: 'transparent',
+                        backgroundColor: C.ci,
+                        pointRadius: 0,
+                        fill: '-1',
+                        tension: 0.35,
+                        order: 3,
+                    },
+                ],
+            },
+            options: {
+                ...commonOptions,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    ...commonOptions.plugins,
+                    legend: {
+                        ...commonOptions.plugins.legend,
+                        labels: {
+                            ...commonOptions.plugins.legend.labels,
+                            filter: (item) => !item.text.includes('Güven'),
+                        },
+                    },
+                    tooltip: {
+                        ...commonOptions.plugins.tooltip,
+                        callbacks: {
+                            label: ctx => {
+                                if (ctx.dataset.label.includes('Güven')) return null;
+                                return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} kWh`;
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { unit: 'day', displayFormats: { day: 'dd MMM' } },
+                        grid: { color: C.grid },
+                        ticks: { color: C.tick, font: { ...chartFont, size: 11 } },
+                    },
+                    y: {
+                        title: { display: true, text: 'kWh', color: C.tick, font: chartFont },
+                        grid: { color: C.grid },
+                        ticks: { color: C.tick, font: { ...chartFont, size: 11 } },
+                        beginAtZero: false,
+                    },
+                },
+            },
+        });
+
+        // Günlük bar chart
+        dailyBarChart = new Chart(document.getElementById('dailyBarChart').getContext('2d'), {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Günlük Toplam', data: [], backgroundColor: [], borderRadius: 6, borderSkipped: false }] },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    ...commonOptions.plugins,
+                    legend: { display: false },
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: C.tick, font: { ...chartFont, size: 10 } } },
+                    y: {
+                        title: { display: true, text: 'kWh', color: C.tick, font: chartFont },
+                        grid: { color: C.grid },
+                        ticks: { color: C.tick, font: { ...chartFont, size: 11 } },
+                        beginAtZero: false,
+                    },
+                },
+            },
+        });
+
+        // Feature importance horizontal bar
+        featureChart = new Chart(document.getElementById('featureChart').getContext('2d'), {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Importance', data: [], backgroundColor: [], borderRadius: 4, borderSkipped: false }] },
+            options: {
+                ...commonOptions,
+                indexAxis: 'y',
+                plugins: { ...commonOptions.plugins, legend: { display: false } },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Importance', color: C.tick, font: chartFont },
+                        grid: { color: C.grid },
+                        ticks: { color: C.tick, font: { ...chartFont, size: 10 } },
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: C.tick, font: { ...chartFont, size: 11 } },
+                    },
+                },
+            },
+        });
+    }
+
+    function updateForecastChart(labels, values, upper, lower) {
+        const data = labels.map((l, i) => ({ x: new Date(l), y: values[i] }));
+        forecast7dChart.data.datasets[0].data = data;
+        forecast7dChart.data.datasets[1].data = labels.map((l, i) => ({ x: new Date(l), y: upper[i] }));
+        forecast7dChart.data.datasets[2].data = labels.map((l, i) => ({ x: new Date(l), y: lower[i] }));
+        forecast7dChart.update('none');
+    }
+
+    function updateDailyBar(labels, values) {
+        const dayLabels = labels.map(l => {
+            const d = new Date(l);
+            return d.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric' });
+        });
+
+        const maxVal = Math.max(...values);
+        const colors = values.map(v => {
+            const ratio = v / maxVal;
+            if (ratio > 0.9) return C.red;
+            if (ratio > 0.7) return C.amber;
+            return C.green;
+        });
+
+        dailyBarChart.data.labels = dayLabels;
+        dailyBarChart.data.datasets[0].data = values;
+        dailyBarChart.data.datasets[0].backgroundColor = colors;
+        dailyBarChart.update('none');
+    }
+
+    function updateFeatureChart(features) {
+        const labels = features.map(f => {
+            // Okunabilir isimler
+            const names = {
+                hour: 'Saat', day_of_week: 'Haftanın Günü', month: 'Ay', is_weekend: 'Hafta Sonu',
+                temperature: 'Sıcaklık', humidity: 'Nem', solar_radiation: 'Güneş Işınımı',
+                occupancy_rate: 'Doluluk', prev_1h_kwh: 'Önceki 1s kWh', prev_2h_kwh: 'Önceki 2s kWh',
+                prev_24h_kwh: 'Önceki 24s kWh', rolling_3h_mean: 'Ort 3s', rolling_24h_mean: 'Ort 24s',
+                temperature_sq: 'Sıcaklık²', occupancy_temp_interaction: 'Doluluk×Sıcaklık',
+            };
+            return names[f.feature] || f.feature;
+        });
+
+        const vals = features.map(f => f.importance);
+        const maxImp = Math.max(...vals);
+
+        const palGreen = ['#00ff88', '#00e67a', '#00cc6c', '#00b35e', '#009950', '#008042', '#006634', '#004d26', '#003319', '#001a0d', '#001a0d', '#001a0d'];
+        const colors = vals.map((v, i) => {
+            const ratio = v / maxImp;
+            if (ratio > 0.6) return C.green;
+            if (ratio > 0.3) return C.blue;
+            return C.purple;
+        });
+
+        featureChart.data.labels = labels;
+        featureChart.data.datasets[0].data = vals;
+        featureChart.data.datasets[0].backgroundColor = colors;
+        featureChart.update('none');
+    }
+
+    // ── 6) Tahmin Hatası Analizi ────────────────────────────────────
+    async function fetchPredictionAnalysis(bid) {
+        try {
+            const res = await fetch(`/api/model/analysis?building_id=${bid}&hours=24`);
+            const d = await res.json();
+            const analysis = d.analysis || [];
+
+            updateErrorChart(analysis);
+        } catch (e) {
+            console.error(e);
+            showToast('Analiz verileri yüklenemedi', 'error');
+        }
+    }
+
+    function updateErrorChart(data) {
+        // Sort by timestamp just in case
+        data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        const labels = data.map(d => new Date(d.timestamp));
+        const actuals = data.map(d => d.actual);
+        const preds = data.map(d => d.predicted);
+
+        if (!errorChart) {
+            const ctx = document.getElementById('errorChart').getContext('2d');
+            errorChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Gerçek',
+                            data: actuals,
+                            borderColor: C.blue,
+                            backgroundColor: C.blue,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            tension: 0.3,
+                            fill: false,
+                            order: 1
+                        },
+                        {
+                            label: 'Tahmin',
+                            data: preds,
+                            borderColor: C.green,
+                            backgroundColor: C.green,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 4,
+                            tension: 0.3,
+                            // Fill logic: target: 0 (Actual dataset index)
+                            fill: {
+                                target: 0,
+                                above: 'rgba(0, 255, 136, 0.2)',   // Pred > Actual (Greenish)
+                                below: 'rgba(239, 68, 68, 0.2)'    // Actual > Pred (Reddish)
+                            },
+                            order: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: { labels: { color: C.tick, usePointStyle: true, font: { ...chartFont, size: 11 } } },
+                        tooltip: {
+                            backgroundColor: '#1a2332',
+                            titleColor: '#f1f5f9',
+                            bodyColor: '#94a3b8',
+                            borderColor: '#1e3a5f',
+                            borderWidth: 1,
+                            padding: 10,
+                            titleFont: { ...chartFont, weight: '600' },
+                            bodyFont: chartFont,
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) label += context.parsed.y.toFixed(1) + ' kWh';
+                                    return label;
+                                },
+                                afterBody: function (tooltipItems) {
+                                    // Calculate deviation manually if both points exist
+                                    const actualItem = tooltipItems.find(i => i.datasetIndex === 0);
+                                    const predItem = tooltipItems.find(i => i.datasetIndex === 1);
+                                    if (actualItem && predItem) {
+                                        const act = actualItem.parsed.y;
+                                        const pre = predItem.parsed.y;
+                                        if (act > 0) {
+                                            const diff = pre - act;
+                                            const pct = (Math.abs(diff) / act) * 100;
+                                            return `Sapma: %${pct.toFixed(1)} (${diff > 0 ? '+' : ''}${diff.toFixed(1)})`;
+                                        }
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
+                            grid: { color: C.grid },
+                            ticks: { color: C.tick, font: { ...chartFont, size: 10 } }
+                        },
+                        y: {
+                            title: { display: true, text: 'kWh', color: C.tick, font: chartFont },
+                            grid: { color: C.grid },
+                            ticks: { color: C.tick, font: { ...chartFont, size: 11 } }
+                        }
+                    }
+                }
+            });
+        } else {
+            errorChart.data.labels = labels;
+            errorChart.data.datasets[0].data = actuals;
+            errorChart.data.datasets[1].data = preds;
+            errorChart.update();
+        }
+    }
+
+    // ── 5) Explainable AI ────────────────────────────────────────────
+    async function fetchExplainAI(bid) {
+        try {
+            const res = await fetch(`/api/model/explain?building_id=${bid}`);
+            const d = await res.json();
+
+            const groups = [
+                { key: 'occupancy', barId: 'xaiOccupancy', pctId: 'xaiOccupancyPct' },
+                { key: 'temperature', barId: 'xaiTemperature', pctId: 'xaiTemperaturePct' },
+                { key: 'lag', barId: 'xaiLag', pctId: 'xaiLagPct' },
+                { key: 'other', barId: 'xaiOther', pctId: 'xaiOtherPct' },
+            ];
+
+            groups.forEach(g => {
+                const pct = d[g.key] || 0;
+                const bar = document.getElementById(g.barId);
+                const label = document.getElementById(g.pctId);
+
+                // Animasyonu sıfırla, sonra tetikle
+                bar.style.width = '0%';
+                label.textContent = '';
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        bar.style.width = pct + '%';
+                        label.textContent = '%' + pct.toFixed(1);
+                    });
+                });
+            });
+        } catch (e) {
+            console.error('XAI hatası:', e);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // BAŞLATMA
+    // ═══════════════════════════════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+        initCharts();
+        loadBuildings();
+    });
+</script>
+
+<style>
+    /* Predictions page-specific styles */
+    .chart-building-select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        border-radius: var(--radius-sm);
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        font-family: 'Inter', sans-serif;
+        width: 100%;
+    }
+
+    .chart-building-select:focus {
+        border-color: var(--accent-green);
+        box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.15);
+        outline: none;
+    }
+
+    .form-label {
+        margin-bottom: 6px;
+    }
+
+    /* Timeline Styles */
+    .timeline {
+        position: relative;
+        padding: 10px 0 10px 10px;
+        border-left: 2px solid var(--border-subtle);
+        margin-left: 10px;
+    }
+
+    .timeline-header {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 15px 0 10px -22px;
+        background: var(--bg-card);
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        border: 1px solid var(--border-subtle);
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+        padding-left: 20px;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -21px;
+        top: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 0.8rem;
+        box-shadow: 0 0 0 4px var(--bg-card);
+    }
+
+    .timeline-content {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        padding: 12px;
+        transition: transform 0.2s;
+    }
+
+    .timeline-content:hover {
+        background: rgba(255, 255, 255, 0.05);
+        transform: translateX(2px);
+    }
+
+    .timeline-time {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .timeline-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+        margin-bottom: 4px;
+    }
+
+    .chart-wrapper canvas {
+        width: 100% !important;
+    }
+
+    @media (max-width: 767.98px) {
+        .chart-wrapper {
+            height: 240px !important;
+        }
+    }
+
+    /* ── Explainable AI progress bars ──────────────────────── */
+    .xai-container {
+        padding: 20px 24px 24px;
+    }
+
+    .xai-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .xai-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .xai-label {
+        flex: 0 0 180px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .xai-icon {
+        font-size: 1.1rem;
+    }
+
+    .xai-bar-track {
+        flex: 1;
+        height: 28px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 14px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .xai-bar-fill {
+        height: 100%;
+        border-radius: 14px;
+        background: linear-gradient(90deg, var(--bar-color), color-mix(in srgb, var(--bar-color) 70%, white));
+        box-shadow: 0 0 12px color-mix(in srgb, var(--bar-color) 40%, transparent);
+        width: 0%;
+        transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .xai-pct {
+        flex: 0 0 60px;
+        text-align: right;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        font-variant-numeric: tabular-nums;
+    }
+
+    @media (max-width: 767.98px) {
+        .xai-label {
+            flex: 0 0 130px;
+            font-size: 0.78rem;
+        }
+
+        .xai-bar-track {
+            height: 22px;
+        }
+
+        .xai-pct {
+            flex: 0 0 50px;
+            font-size: 0.82rem;
+        }
+    }
+</style>
+{% endblock %}

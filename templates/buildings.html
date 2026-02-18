@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}Binalar{% endblock %}
+{% block page_title %}Binalar{% endblock %}
+
+{% block content %}
+
+<!-- ================================================================ -->
+<!-- KPI KARTLARI                                                      -->
+<!-- ================================================================ -->
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-4">
+    <div class="col">
+        <div class="card-dark kpi-card glow-blue animate-in">
+            <i class="bi bi-buildings kpi-icon"></i>
+            <div class="kpi-label">Toplam Bina</div>
+            <div class="kpi-value text-blue" id="kpiBuildingCount">
+                <div class="skeleton" style="width:60px;height:28px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s">aktif izlenen</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card-dark kpi-card glow-green animate-in">
+            <i class="bi bi-lightning-charge-fill kpi-icon"></i>
+            <div class="kpi-label">Toplam Anlık Tüketim</div>
+            <div class="kpi-value text-accent" id="kpiTotalConsumption">
+                <div class="skeleton" style="width:100px;height:28px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s">kWh / saat</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card-dark kpi-card glow-amber animate-in">
+            <i class="bi bi-bar-chart-line kpi-icon"></i>
+            <div class="kpi-label">Ortalama Tüketim</div>
+            <div class="kpi-value text-amber" id="kpiAvgConsumption">
+                <div class="skeleton" style="width:100px;height:28px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s">kWh / bina</div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card-dark kpi-card glow-purple animate-in">
+            <i class="bi bi-trophy kpi-icon"></i>
+            <div class="kpi-label">En Verimli Bina</div>
+            <div class="kpi-value" style="color:var(--accent-purple);font-size:1.1rem" id="kpiMostEfficient">
+                <div class="skeleton" style="width:120px;height:28px;"></div>
+            </div>
+            <div class="kpi-sub text-muted-s" id="kpiMostEfficientSub">en düşük tüketim</div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- BİNA DETAY TABLOSU                                                -->
+<!-- ================================================================ -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-table me-2 text-accent"></i>
+                    Bina Enerji Özeti
+                </h3>
+                <span class="badge bg-dark border border-secondary" id="buildingTableCount">0</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark-custom mb-0">
+                    <thead>
+                        <tr>
+                            <th>Bina Adı</th>
+                            <th>Anlık Tüketim</th>
+                            <th>Model R²</th>
+                            <th>Anomali Sayısı</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody id="buildingTableBody">
+                        <tr>
+                            <td colspan="5">
+                                <div class="skeleton" style="height:24px;margin:8px 0;"></div>
+                                <div class="skeleton" style="height:24px;margin:8px 0;"></div>
+                                <div class="skeleton" style="height:24px;margin:8px 0;"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- BİNA BAZLI KARŞILAŞTIRMA GRAFİĞİ                                 -->
+<!-- ================================================================ -->
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-bar-chart-fill me-2 text-blue"></i>
+                    Bina Tüketim Karşılaştırması
+                </h3>
+            </div>
+            <div class="chart-wrapper" style="position:relative;height:360px;">
+                <canvas id="buildingComparisonChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card-dark animate-in">
+            <div class="card-header-custom">
+                <h3 class="card-title">
+                    <i class="bi bi-pie-chart me-2 text-purple"></i>
+                    Tüketim Dağılımı
+                </h3>
+            </div>
+            <div class="chart-wrapper"
+                style="position:relative;height:360px;display:flex;align-items:center;justify-content:center;">
+                <canvas id="buildingDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+    const C = {
+        green: '#00ff88', blue: '#3b82f6', purple: '#8b5cf6',
+        amber: '#f59e0b', red: '#ef4444',
+        grid: 'rgba(255,255,255,0.04)', tick: '#64748b'
+    };
+    const chartFont = { family: 'Inter' };
+    let comparisonChart = null, distributionChart = null;
+
+    function fmtKwh(n) { return n != null ? n.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) : '--'; }
+
+    async function loadBuildingsPage() {
+        try {
+            const [buildRes, summaryRes] = await Promise.all([
+                fetch('/api/buildings'),
+                fetch('/api/dashboard/summary')
+            ]);
+            const buildData = await buildRes.json();
+            const summaryData = await summaryRes.json();
+
+            const buildings = buildData.buildings || [];
+            document.getElementById('kpiBuildingCount').textContent = buildings.length;
+            document.getElementById('buildingTableCount').textContent = buildings.length;
+
+            const totalConsumption = summaryData.realtime_total_kwh || 0;
+            document.getElementById('kpiTotalConsumption').textContent = fmtKwh(totalConsumption);
+            document.getElementById('kpiAvgConsumption').textContent =
+                buildings.length > 0 ? fmtKwh(totalConsumption / buildings.length) : '--';
+
+            // Fetch per-building data
+            const perBuilding = [];
+            for (const b of buildings) {
+                try {
+                    const accRes = await fetch(`/api/model/accuracy?building_id=${b.id}`);
+                    const accData = await accRes.json();
+                    const anomRes = await fetch(`/api/anomalies?building_id=${b.id}`);
+                    const anomData = await anomRes.json();
+
+                    perBuilding.push({
+                        ...b,
+                        r2: accData.metrics?.r2,
+                        anomalyCount: (anomData.anomalies || []).length
+                    });
+                } catch {
+                    perBuilding.push({ ...b, r2: null, anomalyCount: 0 });
+                }
+            }
+
+            // Most efficient
+            const withR2 = perBuilding.filter(b => b.r2 != null);
+            if (withR2.length > 0) {
+                const best = withR2.reduce((a, b) => (a.r2 > b.r2 ? a : b));
+                document.getElementById('kpiMostEfficient').textContent = best.name;
+                document.getElementById('kpiMostEfficientSub').textContent =
+                    `R² = ${(best.r2 * 100).toFixed(1)}%`;
+            }
+
+            // Table
+            const tbody = document.getElementById('buildingTableBody');
+            tbody.innerHTML = perBuilding.map(b => {
+                const r2Pct = b.r2 != null ? (b.r2 * 100).toFixed(1) + '%' : '--';
+                const r2Color = b.r2 >= 0.85 ? 'text-accent' : b.r2 >= 0.70 ? 'text-amber' : 'text-red';
+                const statusBadge = b.r2 >= 0.70
+                    ? '<span class="badge" style="background:rgba(0,255,136,.12);color:#00ff88">İyi</span>'
+                    : '<span class="badge" style="background:rgba(239,68,68,.12);color:#ef4444">Düşük</span>';
+                return `<tr>
+                    <td><i class="bi bi-building me-2 text-muted"></i>${b.name}</td>
+                    <td>${fmtKwh(totalConsumption / buildings.length)} kWh</td>
+                    <td class="${r2Color} fw-bold">${r2Pct}</td>
+                    <td>${b.anomalyCount}</td>
+                    <td>${statusBadge}</td>
+                </tr>`;
+            }).join('');
+
+            // Charts
+            const names = perBuilding.map(b => b.name.replace('Bina ', 'B'));
+            const r2Vals = perBuilding.map(b => b.r2 ? (b.r2 * 100) : 0);
+            const colors = r2Vals.map(v => v >= 85 ? C.green : v >= 70 ? C.amber : C.red);
+
+            comparisonChart = new Chart(document.getElementById('buildingComparisonChart').getContext('2d'), {
+                type: 'bar',
+                data: { labels: names, datasets: [{ label: 'R² (%)', data: r2Vals, backgroundColor: colors, borderRadius: 6, borderSkipped: false }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: '#1a2332', titleColor: '#f1f5f9', bodyColor: '#94a3b8', borderColor: '#1e3a5f', borderWidth: 1, padding: 10 }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: C.tick, font: { ...chartFont, size: 10 } } },
+                        y: { title: { display: true, text: 'R² (%)', color: C.tick, font: chartFont }, grid: { color: C.grid }, ticks: { color: C.tick }, max: 100 }
+                    }
+                }
+            });
+
+            const distColors = [C.green, C.blue, C.purple, C.amber, C.red, '#10b981', '#06b6d4', '#ec4899'];
+            distributionChart = new Chart(document.getElementById('buildingDistributionChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: perBuilding.map(b => b.name),
+                    datasets: [{ data: perBuilding.map(() => 1), backgroundColor: distColors.slice(0, perBuilding.length), borderWidth: 0 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '60%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: C.tick, usePointStyle: true, pointStyle: 'circle', padding: 12, font: { ...chartFont, size: 11 } } },
+                        tooltip: { backgroundColor: '#1a2332', titleColor: '#f1f5f9', bodyColor: '#94a3b8', borderColor: '#1e3a5f', borderWidth: 1, padding: 10 }
+                    }
+                }
+            });
+
+        } catch (e) {
+            console.error('Buildings page error:', e);
+            showToast('Bina verileri yüklenemedi', 'error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadBuildingsPage);
+</script>
+{% endblock %}
