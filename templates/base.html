@@ -70,6 +70,9 @@
         </div>
     </aside>
 
+    <!-- Sidebar backdrop (mobile) -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <!-- ============================================================ -->
     <!-- ANA İÇERİK ALANI                                             -->
     <!-- ============================================================ -->
@@ -136,20 +139,41 @@
         const sidebar = document.getElementById('sidebar');
         const mainWrapper = document.getElementById('mainWrapper');
         const toggle = document.getElementById('sidebarToggle');
+        const backdrop = document.getElementById('sidebarBackdrop');
+
+        function isMobile() {
+            return window.innerWidth < 768;
+        }
+
+        function closeMobileSidebar() {
+            sidebar.classList.remove('mobile-open');
+            backdrop.classList.remove('active');
+        }
 
         toggle.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            mainWrapper.classList.toggle('expanded');
+            if (isMobile()) {
+                sidebar.classList.toggle('mobile-open');
+                backdrop.classList.toggle('active');
+            } else {
+                sidebar.classList.toggle('collapsed');
+                mainWrapper.classList.toggle('expanded');
+            }
         });
 
-        // Mobilde overlay kapat
-        document.addEventListener('click', (e) => {
-            if (window.innerWidth < 992 &&
-                !sidebar.contains(e.target) &&
-                !toggle.contains(e.target) &&
-                !sidebar.classList.contains('collapsed')) {
-                sidebar.classList.add('collapsed');
-                mainWrapper.classList.add('expanded');
+        // Close sidebar when clicking backdrop
+        backdrop.addEventListener('click', closeMobileSidebar);
+
+        // Close mobile sidebar on nav link click
+        sidebar.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (isMobile()) closeMobileSidebar();
+            });
+        });
+
+        // Handle resize: clean up classes
+        window.addEventListener('resize', () => {
+            if (!isMobile()) {
+                closeMobileSidebar();
             }
         });
 

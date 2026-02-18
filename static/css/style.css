@@ -731,6 +731,23 @@ a:hover {
 /* ================================================================
    RESPONSIVE
    ================================================================ */
+
+/* ── Sidebar backdrop overlay (mobile) ── */
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1035;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.sidebar-backdrop.active {
+    display: block;
+}
+
+/* ── Tablet (≤992px) ── */
 @media (max-width: 991.98px) {
     .sidebar {
         width: var(--sidebar-collapsed-width);
@@ -754,18 +771,184 @@ a:hover {
     .datetime-widget {
         display: none;
     }
+
+    .kpi-card .kpi-value {
+        font-size: 1.6rem;
+    }
 }
 
-@media (max-width: 575.98px) {
+/* ── Mobile landscape / small tablet (≤768px) ── */
+@media (max-width: 767.98px) {
+
+    /* Sidebar: off-screen overlay */
     .sidebar {
-        display: none;
+        width: var(--sidebar-width);
+        transform: translateX(-100%);
+        transition: transform var(--transition);
+        box-shadow: none;
+    }
+
+    .sidebar.mobile-open {
+        transform: translateX(0);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Restore text when sidebar is open on mobile */
+    .sidebar.mobile-open .brand-text,
+    .sidebar.mobile-open .sidebar-nav .nav-link span,
+    .sidebar.mobile-open .sidebar-footer-badge span {
+        opacity: 1;
+        pointer-events: auto;
     }
 
     .main-wrapper {
-        margin-left: 0;
+        margin-left: 0 !important;
+    }
+
+    /* Navbar */
+    .top-navbar {
+        padding: 0 12px;
+    }
+
+    .page-title {
+        font-size: 1rem;
+    }
+
+    /* Page content */
+    .page-content {
+        padding: 12px;
+    }
+
+    /* Cards */
+    .card-dark {
+        padding: 16px;
+    }
+
+    /* KPI */
+    .kpi-card .kpi-value {
+        font-size: 1.4rem;
+    }
+
+    .kpi-card .kpi-icon {
+        font-size: 1.6rem;
+    }
+
+    /* Tables: horizontal scroll */
+    .table-responsive-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-dark-custom th,
+    .table-dark-custom td {
+        white-space: nowrap;
+        padding: 8px 10px;
+        font-size: 0.78rem;
+    }
+
+    /* Charts */
+    .chart-container {
+        padding: 10px;
+        min-height: 220px;
+    }
+
+    /* Bootstrap col overrides for stacking */
+    .row>[class*="col-lg-"],
+    .row>[class*="col-md-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    /* Alert items */
+    .alert-item {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+    }
+
+    /* Plotly charts responsive */
+    .js-plotly-plot {
+        width: 100% !important;
+    }
+
+    .js-plotly-plot .plotly {
+        width: 100% !important;
+    }
+}
+
+/* ── Mobile portrait (≤576px) ── */
+@media (max-width: 575.98px) {
+    .sidebar {
+        width: 260px;
     }
 
     .accuracy-badge {
         display: none;
+    }
+
+    .top-navbar {
+        height: 52px;
+        padding: 0 10px;
+    }
+
+    .page-title {
+        font-size: 0.9rem;
+    }
+
+    .btn-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1.1rem;
+    }
+
+    .page-content {
+        padding: 10px 8px;
+    }
+
+    /* KPI */
+    .kpi-card .kpi-value {
+        font-size: 1.2rem;
+    }
+
+    .kpi-card .kpi-label {
+        font-size: 0.75rem;
+    }
+
+    .kpi-card .kpi-change {
+        font-size: 0.7rem;
+    }
+
+    /* Cards */
+    .card-dark {
+        padding: 14px;
+        border-radius: 10px;
+    }
+
+    .card-dark .card-title {
+        font-size: 0.8rem;
+    }
+
+    /* Buttons */
+    .btn-accent,
+    .btn-outline-accent {
+        padding: 6px 14px;
+        font-size: 0.82rem;
+    }
+
+    /* Badge */
+    .badge-priority,
+    .badge-status {
+        font-size: 0.65rem;
+        padding: 2px 7px;
+    }
+
+    /* Charts */
+    .chart-container {
+        min-height: 200px;
+        padding: 8px;
+    }
+
+    /* Plotly toolbar hide on mobile */
+    .js-plotly-plot .plotly .modebar {
+        display: none !important;
     }
 }
