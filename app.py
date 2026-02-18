@@ -5,6 +5,7 @@ Flask uygulamasını başlatır, API endpoint'lerini tanımlar,
 yapılandırmayı yükler ve veritabanını hazırlar.
 """
 
+import os
 from datetime import datetime, timedelta
 
 from flask import Flask, jsonify, render_template, request
@@ -663,6 +664,10 @@ def _register_routes(app: Flask):
 # ---------------------------------------------------------------------------
 # Doğrudan çalıştırma
 # ---------------------------------------------------------------------------
+# Gunicorn import için modül seviyesinde app oluştur
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
-    socketio.run(app, host="0.0.0.0", port=5001, debug=True)
+    port = int(os.environ.get("PORT", 5001))
+    debug = os.environ.get("FLASK_DEBUG", "1") == "1"
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug)
