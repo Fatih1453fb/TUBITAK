@@ -21,7 +21,7 @@
 
 EnerjiOS, üniversite kampüslerindeki binaların enerji tüketimini **gerçek zamanlı** olarak izleyen, **makine öğrenmesi** ile gelecekteki tüketimi tahmin eden ve **otomatik optimizasyon stratejileri** üreten kapsamlı bir web platformudur.
 
-Sistem, 5 farklı bina (Mühendislik, Kütüphane, Spor Salonu, İdari Bina, Yurt) için:
+Sistem, 5 farklı bina (A Blok Laboratuvarları, B Blok Derslikler, C Blok Ofisler, Kütüphane, Spor Merkezi) için:
 - 📊 **Saatlik/günlük enerji tüketim tahmini** yapar
 - 🔍 **Anomali tespiti** ile anormal tüketim kalıplarını yakalar
 - 💡 **Doluluk, tarife ve hava durumuna göre** tasarruf önerileri üretir
