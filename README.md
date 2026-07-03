@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)
 ![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-1.3-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
@@ -11,7 +11,7 @@
 
 **Üniversite kampüsleri için yapay zeka destekli enerji tüketim tahmini, anomali tespiti ve optimizasyon platformu.**
 
-[Özellikler](#-özellikler) • [Kurulum](#-kurulum) • [Kullanım](#-kullanım) • [Mimari](#-sistem-mimarisi) • [Teknolojiler](#-teknolojiler)
+[Özellikler](#-özellikler) • [Test Sonuçları](#-test-sonuçları) • [Kurulum](#-kurulum) • [Kullanım](#-kullanım) • [Mimari](#-sistem-mimarisi) • [Teknolojiler](#-teknolojiler)
 
 </div>
 
@@ -27,6 +27,9 @@ Sistem, 5 farklı bina (A Blok Laboratuvarları, B Blok Derslikler, C Blok Ofisl
 - 💡 **Doluluk, tarife ve hava durumuna göre** tasarruf önerileri üretir
 - 🌱 **Karbon ayak izi hesaplaması** ile çevresel etkiyi ölçer
 
+> 🎓 Bu proje, **TÜBİTAK 2209-A Üniversite Öğrencileri Araştırma Projeleri Destek Programı** kapsamında desteklenmiştir.
+> *Proje Yürütücüsü: Fatih Kuruçay · Danışman: Dr. Öğr. Üyesi Peren Jerfi Canatalay · İstinye Üniversitesi*
+
 ---
 
 ## ✨ Özellikler
@@ -41,7 +44,7 @@ Sistem, 5 farklı bina (A Blok Laboratuvarları, B Blok Derslikler, C Blok Ofisl
 - Saatlik enerji tüketim ısı haritası (heatmap)
 - Bina karşılaştırmalı tüketim analizi
 - Trend analizi ve tarihsel veriler
-- İnteraktif Plotly grafikleri
+- İnteraktif Chart.js grafikleri
 
 ### 🤖 AI Tahmin Motoru
 - Random Forest algoritması ile enerji tüketim tahmini
@@ -68,26 +71,61 @@ Sistem, 5 farklı bina (A Blok Laboratuvarları, B Blok Derslikler, C Blok Ofisl
 - Karşılaştırmalı performans analizi
 
 ### 🌍 Çevresel Etki
-- CO₂ emisyon hesaplaması (0.43 kg/kWh)
+- CO₂ emisyon hesaplaması (0,43 kg/kWh — Türkiye şebeke ortalaması)
 - Potansiyel azaltım miktarı
 - Kampüs bazında çevresel raporlama
+
+---
+
+## 📊 Test Sonuçları
+
+Karşılaştırmalı model değerlendirmesinde üç algoritma test edilmiştir: **Doğrusal Regresyon** (Model A, baseline), **Karar Ağacı** (Model B) ve **Random Forest** (Model C). Time Series Cross-Validation ve hiperparametre optimizasyonu sonucunda en kararlı genelleme performansını Random Forest göstermiş ve sistemin tahmin katmanı olarak seçilmiştir. Karşılaştırma `compare_models.py` scripti ile yeniden üretilebilir.
+
+### Tahmin Modeli Performansı (Random Forest — bina bazlı test sonuçları)
+
+| Bina | Test R² | MAE (kWh) | RMSE (kWh) | Değerlendirme |
+|------|---------|-----------|------------|---------------|
+| A Blok Laboratuvarları | 0,8280 | 3,08 | 3,88 | Kararlı |
+| B Blok Derslikler | 0,8570 | 3,50 | 4,43 | Kararlı |
+| C Blok Ofisler | 0,8353 | 1,17 | 1,46 | Kararlı |
+| Kütüphane | 0,7855 | 0,67 | 0,84 | Hafif aşırı öğrenme |
+| Spor Merkezi | 0,7639 | 1,18 | 1,45 | Hafif aşırı öğrenme |
+| **Ortalama** | **0,8139** | — | — | — |
+
+### Optimizatör Backtesting (30 Gün)
+
+| Metrik | Değer |
+|--------|-------|
+| Toplam gerçek tüketim | 145.732 kWh |
+| Simüle edilmiş tüketim | 135.975 kWh |
+| Potansiyel tasarruf | **9.756 kWh (%6,7)** |
+| CO₂ azaltımı | **4.195 kg** |
+
+### Anomali Tespiti (Z-skoru, eşik = 2,5)
+
+| Metrik | Ortalama Değer |
+|--------|----------------|
+| Kesinlik (Precision) | 0,94 |
+| Duyarlılık (Recall) | 0,31 |
+| F1 Skoru | 0,47 |
+
+> Yüksek kesinlik öncelikli, muhafazakâr tespit yaklaşımı benimsenmiştir. HVAC duyarlılık analizleri (%5–%20 kısıtlama senaryoları) ve bulguların ayrıntılı tartışması için TÜBİTAK 2209-A proje sonuç raporuna bakınız.
 
 ---
 
 ## 🏗 Sistem Mimarisi
 
 ```
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│  Veri       │───▶│  Zamanlayıcı │───▶│  ML Model   │
-│  Toplama    │    │  (Scheduler) │    │  (Random    │
-│  (Sensörler)│    │              │    │   Forest)   │
-└─────────────┘    └──────────────┘    └──────┬──────┘
-                                              │
-┌─────────────┐   ┌──────────────┐     ┌──────▼──────┐
-│  Dashboard  │◀──│  Uyarılar &  │◀────│ Optimizatör │
-│  (Flask +   │   │  WebSocket   │     │  (Strateji  │
-│   Chart.js) │   │  (Socket.IO) │     │   Üretici)  │
-└─────────────┘   └──────────────┘     └─────────────┘
+┌────────────────┐    ┌────────────────┐    ┌────────────────┐
+│  Veri Toplama  │───▶│  Zamanlayıcı   │───▶│    ML Model    │
+│ (Web API'leri) │    │  (APScheduler) │    │ (Random Forest)│
+└────────────────┘    └────────────────┘    └────────┬───────┘
+                                                     │
+┌────────────────┐    ┌────────────────┐    ┌────────▼───────┐
+│   Dashboard    │◀───│   Uyarılar &   │◀───│  Optimizatör   │
+│(Flask+Chart.js)│    │   WebSocket    │    │   (Strateji    │
+│                │    │  (Socket.IO)   │    │    Üretici)    │
+└────────────────┘    └────────────────┘    └────────────────┘
 ```
 
 ---
@@ -131,7 +169,7 @@ TÜBİTAK/
 ## 🚀 Kurulum
 
 ### Gereksinimler
-- Python 3.10 veya üzeri
+- Python 3.11 veya üzeri
 - pip (Python paket yöneticisi)
 
 ### Adımlar
@@ -155,7 +193,7 @@ python3 app.py
 
 Uygulama varsayılan olarak **http://127.0.0.1:5001** adresinde çalışır.
 
-> **Not:** İlk çalıştırmada veritabanı otomatik oluşturulur ve örnek veriler seed edilir. ML modelleri de otomatik olarak eğitilir.
+> **Not:** İlk çalıştırmada veritabanı otomatik oluşturulur ve örnek veriler seed edilir; bu, platformun herkes tarafından hemen çalıştırılıp incelenebilmesi (demo) içindir. Proje kapsamındaki asıl veri seti, web kaynaklarından (açık meteoroloji API'leri, kampüs bilgi sistemleri, enerji platformları) 5 dakikalık aralıklarla toplanmıştır. ML modelleri ilk çalıştırmada otomatik olarak eğitilir.
 
 ---
 
@@ -180,7 +218,7 @@ Uygulama varsayılan olarak **http://127.0.0.1:5001** adresinde çalışır.
 | **ML/AI** | Scikit-Learn (Random Forest), Pandas, NumPy |
 | **Veritabanı** | SQLite, SQLAlchemy |
 | **Frontend** | HTML5, CSS3, JavaScript, Bootstrap 5 |
-| **Grafikler** | Chart.js, Plotly.js |
+| **Grafikler** | Chart.js |
 | **Gerçek Zamanlı** | Socket.IO, WebSocket |
 | **Zamanlama** | APScheduler |
 | **Deployment** | Gunicorn |
@@ -202,7 +240,7 @@ Uygulama varsayılan olarak **http://127.0.0.1:5001** adresinde çalışır.
 
 ## 👤 Geliştirici
 
-**Fatih Kurucay**
+**Fatih Kuruçay**
 - GitHub: [@Fatih1453fb](https://github.com/Fatih1453fb)
 
 ---
